@@ -21,6 +21,7 @@ internal sealed class ManejadorExcepcionesGlobal(
             RecursoNoEncontradoException e => Crear(StatusCodes.Status404NotFound, "Recurso no encontrado", e.Message),
             ConflictoException e => Crear(StatusCodes.Status409Conflict, "Conflicto con el estado actual", e.Message),
             AccesoDenegadoException e => Crear(StatusCodes.Status403Forbidden, "Acceso denegado", e.Message),
+            NoAutenticadoException e => Crear(StatusCodes.Status401Unauthorized, "No autenticado", e.Message),
             _ => null,
         };
 
@@ -41,6 +42,17 @@ internal sealed class ManejadorExcepcionesGlobal(
             Exception = exception,
         });
     }
+
+    /// <summary>Código HTTP que corresponde a una excepción (también lo usa la auditoría).</summary>
+    public static int CodigoPara(Exception exception) => exception switch
+    {
+        ExcepcionDominio => StatusCodes.Status400BadRequest,
+        NoAutenticadoException => StatusCodes.Status401Unauthorized,
+        AccesoDenegadoException => StatusCodes.Status403Forbidden,
+        RecursoNoEncontradoException => StatusCodes.Status404NotFound,
+        ConflictoException => StatusCodes.Status409Conflict,
+        _ => StatusCodes.Status500InternalServerError,
+    };
 
     private static ProblemDetails Crear(int estado, string titulo, string? detalle) =>
         new() { Status = estado, Title = titulo, Detail = detalle };

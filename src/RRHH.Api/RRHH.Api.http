@@ -1,40 +1,46 @@
-# Archivo de pruebas manuales (Visual Studio: clic en "Send request").
-# Los Id de ejemplo corresponden a los datos demo que se cargan en Development:
-#   1 = Gerente General · 5 = Jefe de Tecnología · 6, 7, 8 = su equipo
+# Peticiones de ejemplo (Visual Studio: clic en "Send request").
+# Usuarios demo (solo Development). Clave de todos: Demo.Rrhh2026
+#   carolina.fuentes@empresa-demo.cl   Admin
+#   marcela.soto@empresa-demo.cl       RRHH (todas las regiones)
+#   diego.munoz@empresa-demo.cl        RRHH (solo Región Metropolitana)
+#   valentina.reyes@empresa-demo.cl    RRHH (solo Valparaíso)
+#   rodrigo.vergara@empresa-demo.cl    Jefatura (Tecnología, empleado 5)
+#   matias.gonzalez@empresa-demo.cl    Empleado (Tecnología, empleado 7)
 @api = https://localhost:7052
-@jefeTi = 5
-@dev = 7
+@clave = Demo.Rrhh2026
 
-### Estado de la API y la base de datos
+### 1. Login como Admin
+# @name loginAdmin
+POST {{api}}/api/v1/auth/login
+Content-Type: application/json
+
+{ "email": "carolina.fuentes@empresa-demo.cl", "clave": "{{clave}}" }
+
+###
+@admin = {{loginAdmin.response.body.$.tokenAcceso}}
+
+### Perfil del usuario actual
+GET {{api}}/api/v1/auth/yo
+Authorization: Bearer {{admin}}
+
+### Estado de la API (público)
 GET {{api}}/health
 
 ### ---------- Catálogos ----------
 GET {{api}}/api/v1/regiones
+Authorization: Bearer {{admin}}
 
 ###
 GET {{api}}/api/v1/regiones/13/comunas
-
-###
-GET {{api}}/api/v1/feriados?anio=2026
-
-### ---------- Organización ----------
-GET {{api}}/api/v1/departamentos
-
-###
-GET {{api}}/api/v1/cargos?activo=true
+Authorization: Bearer {{admin}}
 
 ### ---------- Empleados ----------
-# Búsqueda con filtros y paginación
 GET {{api}}/api/v1/empleados?regionId=13&activo=true&pagina=1&tamanoPagina=10
-
-###
-GET {{api}}/api/v1/empleados?busqueda=camila
-
-###
-GET {{api}}/api/v1/empleados/{{jefeTi}}/subordinados
+Authorization: Bearer {{admin}}
 
 ### Crear empleado (RUT válido: 16.617.013-3)
 POST {{api}}/api/v1/empleados
+Authorization: Bearer {{admin}}
 Content-Type: application/json
 
 {
@@ -48,42 +54,78 @@ Content-Type: application/json
   "departamentoId": 3,
   "cargoId": 6,
   "comunaId": 13101,
-  "jefeId": {{jefeTi}},
+  "jefeId": 5,
   "afp": "Modelo",
   "sistemaSalud": "Fonasa",
   "aniosServicioPrevios": 4
 }
 
-### ---------- Vacaciones ----------
-GET {{api}}/api/v1/empleados/{{dev}}/vacaciones/saldo
-
-### El empleado solicita vacaciones (cabecera = quién hace la petición)
-POST {{api}}/api/v1/empleados/{{dev}}/vacaciones
+### ---------- RRHH regional: solo ve Valparaíso ----------
+# @name loginValpo
+POST {{api}}/api/v1/auth/login
 Content-Type: application/json
-X-Empleado-Id: {{dev}}
 
-{
-  "fechaInicio": "2026-12-14",
-  "fechaFin": "2026-12-18",
-  "comentario": "Vacaciones de fin de año"
-}
+{ "email": "valentina.reyes@empresa-demo.cl", "clave": "{{clave}}" }
 
-### Bandeja del jefe
+###
+GET {{api}}/api/v1/empleados
+Authorization: Bearer {{loginValpo.response.body.$.tokenAcceso}}
+
+### ---------- Vacaciones: el empleado solicita, el jefe aprueba ----------
+# @name loginEmpleado
+POST {{api}}/api/v1/auth/login
+Content-Type: application/json
+
+{ "email": "matias.gonzalez@empresa-demo.cl", "clave": "{{clave}}" }
+
+###
+@empleado = {{loginEmpleado.response.body.$.tokenAcceso}}
+
+GET {{api}}/api/v1/empleados/7/vacaciones/saldo
+Authorization: Bearer {{empleado}}
+
+###
+POST {{api}}/api/v1/empleados/7/vacaciones
+Authorization: Bearer {{empleado}}
+Content-Type: application/json
+
+{ "fechaInicio": "2026-12-14", "fechaFin": "2026-12-18", "comentario": "Vacaciones de fin de año" }
+
+### El empleado intenta ver a otro → 404
+GET {{api}}/api/v1/empleados/6
+Authorization: Bearer {{empleado}}
+
+###
+# @name loginJefe
+POST {{api}}/api/v1/auth/login
+Content-Type: application/json
+
+{ "email": "rodrigo.vergara@empresa-demo.cl", "clave": "{{clave}}" }
+
+###
+@jefe = {{loginJefe.response.body.$.tokenAcceso}}
+
 GET {{api}}/api/v1/vacaciones/pendientes-equipo
-X-Empleado-Id: {{jefeTi}}
+Authorization: Bearer {{jefe}}
 
 ### Aprobar (reemplaza 2 por el id de la solicitud)
 POST {{api}}/api/v1/vacaciones/2/aprobar
-X-Empleado-Id: {{jefeTi}}
+Authorization: Bearer {{jefe}}
 
-### ---------- Seguros ----------
-GET {{api}}/api/v1/planes-seguro
+### ---------- Tokens ----------
+POST {{api}}/api/v1/auth/renovar
+Content-Type: application/json
+
+{ "tokenRenovacion": "{{loginAdmin.response.body.$.tokenRenovacion}}" }
+
+### ---------- Administración (solo Admin) ----------
+GET {{api}}/api/v1/usuarios
+Authorization: Bearer {{admin}}
 
 ###
-GET {{api}}/api/v1/empleados/{{dev}}/seguros
+GET {{api}}/api/v1/auditoria?tamanoPagina=20
+Authorization: Bearer {{admin}}
 
-### ---------- Reportes ----------
+### Reportes
 GET {{api}}/api/v1/reportes/resumen
-
-### Descarga Excel (en VS usa "Save response" o ábrelo desde Swagger)
-GET {{api}}/api/v1/reportes/empleados/excel?regionId=13
+Authorization: Bearer {{admin}}

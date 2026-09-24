@@ -10,15 +10,15 @@ namespace RRHH.Api.IntegrationTests;
 [Collection(ColeccionApi.Nombre)]
 public sealed class EmpleadosTests(ApiFactory factory)
 {
-    private readonly HttpClient _cliente = factory.CreateClient();
 
     [Fact]
     public async Task CrearDepartamentoDuplicado_409()
     {
+        var cliente = await factory.ClienteAdminAsync();
         var comando = new GuardarDepartamentoComando(ClienteApi.Unico("Depto"), null);
 
-        var primero = await _cliente.PostAsJsonAsync("/api/v1/departamentos", comando, ClienteApi.Json);
-        var segundo = await _cliente.PostAsJsonAsync("/api/v1/departamentos", comando, ClienteApi.Json);
+        var primero = await cliente.PostAsJsonAsync("/api/v1/departamentos", comando, ClienteApi.Json);
+        var segundo = await cliente.PostAsJsonAsync("/api/v1/departamentos", comando, ClienteApi.Json);
 
         Assert.Equal(HttpStatusCode.Created, primero.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, segundo.StatusCode);
@@ -27,9 +27,10 @@ public sealed class EmpleadosTests(ApiFactory factory)
     [Fact]
     public async Task CrearEmpleado_ConRegionYDetalleCompleto()
     {
-        var (dep, cargo) = await _cliente.CrearDepartamentoYCargoAsync();
+        var cliente = await factory.ClienteAdminAsync();
+        var (dep, cargo) = await cliente.CrearDepartamentoYCargoAsync();
 
-        var empleado = await _cliente.CrearEmpleadoAsync(ClienteApi.NuevoEmpleado(dep, cargo, comunaId: 5109));
+        var empleado = await cliente.CrearEmpleadoAsync(ClienteApi.NuevoEmpleado(dep, cargo, comunaId: 5109));
 
         Assert.Equal("Viña del Mar", empleado.Comuna.Nombre);
         Assert.Equal("Valparaíso", empleado.Region.Nombre);
@@ -39,10 +40,11 @@ public sealed class EmpleadosTests(ApiFactory factory)
     [Fact]
     public async Task CrearEmpleado_RutInvalido_400()
     {
-        var (dep, cargo) = await _cliente.CrearDepartamentoYCargoAsync();
+        var cliente = await factory.ClienteAdminAsync();
+        var (dep, cargo) = await cliente.CrearDepartamentoYCargoAsync();
         var comando = ClienteApi.NuevoEmpleado(dep, cargo) with { Rut = "12.345.678-9" };
 
-        var respuesta = await _cliente.PostAsJsonAsync("/api/v1/empleados", comando, ClienteApi.Json);
+        var respuesta = await cliente.PostAsJsonAsync("/api/v1/empleados", comando, ClienteApi.Json);
 
         Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
     }
@@ -50,12 +52,13 @@ public sealed class EmpleadosTests(ApiFactory factory)
     [Fact]
     public async Task CrearEmpleado_RutDuplicado_409()
     {
-        var (dep, cargo) = await _cliente.CrearDepartamentoYCargoAsync();
+        var cliente = await factory.ClienteAdminAsync();
+        var (dep, cargo) = await cliente.CrearDepartamentoYCargoAsync();
         var comando = ClienteApi.NuevoEmpleado(dep, cargo);
-        await _cliente.CrearEmpleadoAsync(comando);
+        await cliente.CrearEmpleadoAsync(comando);
 
         var duplicado = comando with { Email = $"otro.{Guid.NewGuid():N}@empresa-test.cl" };
-        var respuesta = await _cliente.PostAsJsonAsync("/api/v1/empleados", duplicado, ClienteApi.Json);
+        var respuesta = await cliente.PostAsJsonAsync("/api/v1/empleados", duplicado, ClienteApi.Json);
 
         Assert.Equal(HttpStatusCode.Conflict, respuesta.StatusCode);
     }
@@ -63,14 +66,15 @@ public sealed class EmpleadosTests(ApiFactory factory)
     [Fact]
     public async Task AsignarJefatura_QueGeneraCiclo_409()
     {
-        var (dep, cargo) = await _cliente.CrearDepartamentoYCargoAsync();
-        var jefe = await _cliente.CrearEmpleadoAsync(ClienteApi.NuevoEmpleado(dep, cargo));
-        var subordinado = await _cliente.CrearEmpleadoAsync(ClienteApi.NuevoEmpleado(dep, cargo, jefeId: jefe.Id));
+        var cliente = await factory.ClienteAdminAsync();
+        var (dep, cargo) = await cliente.CrearDepartamentoYCargoAsync();
+        var jefe = await cliente.CrearEmpleadoAsync(ClienteApi.NuevoEmpleado(dep, cargo));
+        var subordinado = await cliente.CrearEmpleadoAsync(ClienteApi.NuevoEmpleado(dep, cargo, jefeId: jefe.Id));
 
         // Intentar que el subordinado sea jefe de su propio jefe
         var comando = new ActualizarEmpleadoComando(
-            jefe.Email, jefe.Comuna.Id, dep, cargo, subordinado.Id, jefe.Afp, jefe.SistemaSalud, 0);
-        var respuesta = await _cliente.PutAsJsonAsync($"/api/v1/empleados/{jefe.Id}", comando, ClienteApi.Json);
+            jefe.Email, jefe.Comuna.Id, dep, cargo, subordinado.Id, jefe.Afp!.Value, jefe.SistemaSalud!.Value, 0);
+        var respuesta = await cliente.PutAsJsonAsync($"/api/v1/empleados/{jefe.Id}", comando, ClienteApi.Json);
 
         Assert.Equal(HttpStatusCode.Conflict, respuesta.StatusCode);
     }
@@ -78,13 +82,14 @@ public sealed class EmpleadosTests(ApiFactory factory)
     [Fact]
     public async Task Buscar_FiltraPorDepartamentoYPagina()
     {
-        var (dep, cargo) = await _cliente.CrearDepartamentoYCargoAsync();
+        var cliente = await factory.ClienteAdminAsync();
+        var (dep, cargo) = await cliente.CrearDepartamentoYCargoAsync();
         for (var i = 0; i < 3; i++)
         {
-            await _cliente.CrearEmpleadoAsync(ClienteApi.NuevoEmpleado(dep, cargo));
+            await cliente.CrearEmpleadoAsync(ClienteApi.NuevoEmpleado(dep, cargo));
         }
 
-        var pagina = await (await _cliente.GetAsync($"/api/v1/empleados?departamentoId={dep}&tamanoPagina=2"))
+        var pagina = await (await cliente.GetAsync($"/api/v1/empleados?departamentoId={dep}&tamanoPagina=2"))
             .LeerAsync<Pagina<EmpleadoResumenDto>>();
 
         Assert.Equal(3, pagina.Total);
@@ -95,10 +100,11 @@ public sealed class EmpleadosTests(ApiFactory factory)
     [Fact]
     public async Task ExportarExcel_DevuelveXlsx()
     {
-        var (dep, cargo) = await _cliente.CrearDepartamentoYCargoAsync();
-        await _cliente.CrearEmpleadoAsync(ClienteApi.NuevoEmpleado(dep, cargo));
+        var cliente = await factory.ClienteAdminAsync();
+        var (dep, cargo) = await cliente.CrearDepartamentoYCargoAsync();
+        await cliente.CrearEmpleadoAsync(ClienteApi.NuevoEmpleado(dep, cargo));
 
-        var respuesta = await _cliente.GetAsync($"/api/v1/reportes/empleados/excel?departamentoId={dep}");
+        var respuesta = await cliente.GetAsync($"/api/v1/reportes/empleados/excel?departamentoId={dep}");
         var bytes = await respuesta.Content.ReadAsByteArrayAsync();
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);

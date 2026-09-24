@@ -1,9 +1,11 @@
 using RRHH.Application.Comun;
 using RRHH.Application.Empleados;
+using RRHH.Application.Seguridad;
 using RRHH.Application.Vacaciones;
 using RRHH.Domain.Calendario;
 using RRHH.Domain.Comun;
 using RRHH.Domain.Empleados;
+using RRHH.Domain.Seguridad;
 using RRHH.Domain.Vacaciones;
 
 namespace RRHH.Application.Tests.Vacaciones;
@@ -34,9 +36,29 @@ public class VacacionesServicioTests
     }
 
     private VacacionesServicio Servicio() =>
-        new(_solicitudes, _feriados, _empleados, new ConsultasFalsas(_solicitudes), _usuario, new UnidadFalsa(), Reloj);
+        new(_solicitudes, _feriados, _empleados, new EmpleadoConsultasFalsas(_empleados), new ConsultasFalsas(_solicitudes),
+            _usuario, new UnidadFalsa(), Reloj);
 
     private static SolicitarVacacionesComando Semana(DateOnly lunes) => new(lunes, lunes.AddDays(4), null);
+
+    [Fact]
+    public async Task Saldo_DeOtroEmpleadoSinSerSuJefe_NoEncontrado()
+    {
+        _usuario.EmpleadoId = OtroEmpleadoId;
+
+        await Assert.ThrowsAsync<RecursoNoEncontradoException>(() =>
+            Servicio().ObtenerSaldoAsync(EmpleadoId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Saldo_DelSubordinado_VisibleParaElJefe()
+    {
+        _usuario.EmpleadoId = JefeId;
+
+        var saldo = await Servicio().ObtenerSaldoAsync(EmpleadoId, CancellationToken.None);
+
+        Assert.Equal(EmpleadoId, saldo.EmpleadoId);
+    }
 
     [Fact]
     public async Task Solicitar_SinIdentificarse_AccesoDenegado()
@@ -133,6 +155,7 @@ public class VacacionesServicioTests
     public async Task Saldo_DescuentaPendientes()
     {
         await CrearSolicitudPendienteAsync();
+        _usuario.EmpleadoId = EmpleadoId;
 
         var saldo = await Servicio().ObtenerSaldoAsync(EmpleadoId, CancellationToken.None);
 
@@ -173,9 +196,34 @@ public class VacacionesServicioTests
         public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
     }
 
+    /// <summary>Usuario de prueba: al fijar EmpleadoId actúa como ese empleado; el jefe (1) tiene rol Jefatura.</summary>
     private sealed class UsuarioFalso : IUsuarioActual
     {
         public int? EmpleadoId { get; set; }
+        public int? UsuarioId => EmpleadoId;
+        public string? Email => null;
+        public Rol? Rol => EmpleadoId switch { null => null, JefeId => Domain.Seguridad.Rol.Jefatura, _ => Domain.Seguridad.Rol.Empleado };
+        public IReadOnlyList<int> Regiones => [];
+        public string? Ip => null;
+    }
+
+    /// <summary>Alcance simplificado: propio empleado, equipo directo del jefe o total.</summary>
+    private sealed class EmpleadoConsultasFalsas(FakeEmpleados empleados) : IEmpleadoConsultas
+    {
+        public async Task<bool> EstaEnAlcanceAsync(int empleadoId, AlcanceDatos alcance, CancellationToken ct)
+        {
+            var empleado = await empleados.ObtenerAsync(empleadoId, ct);
+            return empleado is not null && (alcance.Total ||
+                   alcance.EmpleadoPropioId == empleadoId || (alcance.JefeId is not null && empleado.JefeId == alcance.JefeId));
+        }
+
+        public Task<Pagina<EmpleadoResumenDto>> BuscarAsync(FiltroEmpleados filtro, AlcanceDatos alcance, CancellationToken ct) =>
+            throw new NotSupportedException();
+        public Task<EmpleadoDetalleDto?> ObtenerDetalleAsync(int id, CancellationToken ct) => throw new NotSupportedException();
+        public Task<IReadOnlyList<EmpleadoResumenDto>> ListarSubordinadosAsync(int jefeId, AlcanceDatos alcance, CancellationToken ct) =>
+            throw new NotSupportedException();
+        public Task<IReadOnlyList<EmpleadoResumenDto>> ListarParaExportarAsync(FiltroEmpleados f, AlcanceDatos a, int m, CancellationToken ct) =>
+            throw new NotSupportedException();
     }
 
     private sealed class UnidadFalsa : IUnidadDeTrabajo

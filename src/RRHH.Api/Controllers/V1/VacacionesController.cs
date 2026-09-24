@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using RRHH.Api.OpenApi;
 using RRHH.Application.Vacaciones;
 
 namespace RRHH.Api.Controllers.V1;
@@ -17,26 +16,22 @@ public sealed class VacacionesController(IVacacionesServicio vacaciones) : Contr
 
     /// <summary>Solicitudes pendientes de los subordinados directos del usuario actual.</summary>
     [HttpGet("pendientes-equipo")]
-    [RequiereIdentidadDemo]
     public Task<IReadOnlyList<SolicitudVacacionesDto>> PendientesDeMiEquipo(CancellationToken ct) =>
         vacaciones.ListarPendientesDeMiEquipoAsync(ct);
 
     /// <summary>Aprueba una solicitud (solo la jefatura directa).</summary>
     [HttpPost("{id:int}/aprobar")]
-    [RequiereIdentidadDemo]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public Task<SolicitudVacacionesDto> Aprobar(int id, CancellationToken ct) => vacaciones.AprobarAsync(id, ct);
 
     /// <summary>Rechaza una solicitud indicando el motivo (solo la jefatura directa).</summary>
     [HttpPost("{id:int}/rechazar")]
-    [RequiereIdentidadDemo]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public Task<SolicitudVacacionesDto> Rechazar(int id, RechazarSolicitudComando comando, CancellationToken ct) =>
         vacaciones.RechazarAsync(id, comando, ct);
 
     /// <summary>El propio empleado cancela su solicitud pendiente.</summary>
     [HttpPost("{id:int}/cancelar")]
-    [RequiereIdentidadDemo]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public Task<SolicitudVacacionesDto> Cancelar(int id, CancellationToken ct) => vacaciones.CancelarAsync(id, ct);
 }

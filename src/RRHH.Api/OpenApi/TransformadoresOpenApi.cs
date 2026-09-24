@@ -1,12 +1,13 @@
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
-using RRHH.Api.Infraestructura;
 
 namespace RRHH.Api.OpenApi;
 
-/// <summary>Título, versión y descripción del documento OpenAPI.</summary>
+/// <summary>Título, descripción y esquema de seguridad Bearer (botón "Authorize" en Swagger).</summary>
 internal sealed class InformacionDocumento : IOpenApiDocumentTransformer
 {
+    public const string EsquemaBearer = "Bearer";
+
     public Task TransformAsync(OpenApiDocument document, OpenApiDocumentTransformerContext context, CancellationToken cancellationToken)
     {
         document.Info = new OpenApiInfo
@@ -15,33 +16,24 @@ internal sealed class InformacionDocumento : IOpenApiDocumentTransformer
             Version = "v1",
             Description =
                 "Módulo interno de Recursos Humanos (Chile): empleados por región y comuna, departamentos, cargos, " +
-                "jefaturas, vacaciones (feriado legal y progresivo), seguros complementarios y reportes Excel. " +
-                "Arquitectura hexagonal con ASP.NET Core 10 y EF Core.",
+                "jefaturas, vacaciones (feriado legal y progresivo), seguros complementarios y reportes Excel.\n\n" +
+                "**Autenticación:** use `POST /api/v1/auth/login`, copie `tokenAcceso` y péguelo en **Authorize**.",
         };
 
-        return Task.CompletedTask;
-    }
-}
-
-/// <summary>Agrega la cabecera X-Empleado-Id a los endpoints marcados con <see cref="RequiereIdentidadDemoAttribute"/>.</summary>
-internal sealed class CabeceraIdentidadDemo : IOpenApiOperationTransformer
-{
-    public Task TransformAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken cancellationToken)
-    {
-        var requiere = context.Description.ActionDescriptor.EndpointMetadata.OfType<RequiereIdentidadDemoAttribute>().Any();
-        if (!requiere)
+        document.Components ??= new OpenApiComponents();
+        document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+        document.Components.SecuritySchemes[EsquemaBearer] = new OpenApiSecurityScheme
         {
-            return Task.CompletedTask;
-        }
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            Description = "Token de acceso obtenido en /api/v1/auth/login (válido 15 minutos).",
+        };
 
-        operation.Parameters ??= [];
-        operation.Parameters.Add(new OpenApiParameter
+        document.Security ??= [];
+        document.Security.Add(new OpenApiSecurityRequirement
         {
-            Name = UsuarioActualDesdeCabecera.NombreCabecera,
-            In = ParameterLocation.Header,
-            Required = true,
-            Description = "Id del empleado que realiza la operación (temporal hasta implementar JWT).",
-            Schema = new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32" },
+            [new OpenApiSecuritySchemeReference(EsquemaBearer, document)] = [],
         });
 
         return Task.CompletedTask;

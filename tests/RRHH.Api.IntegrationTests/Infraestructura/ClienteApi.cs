@@ -3,16 +3,16 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using RRHH.Application.Empleados;
 using RRHH.Application.Organizacion;
+using RRHH.Application.Seguridad;
 using RRHH.Domain.Comun;
 using RRHH.Domain.Empleados;
+using RRHH.Domain.Seguridad;
 
 namespace RRHH.Api.IntegrationTests.Infraestructura;
 
 /// <summary>Utilidades para crear datos de prueba únicos a través de la propia API.</summary>
 public static class ClienteApi
 {
-    public const string CabeceraEmpleado = "X-Empleado-Id";
-
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter() },
@@ -66,5 +66,15 @@ public static class ClienteApi
         var respuesta = await cliente.PostAsJsonAsync("/api/v1/empleados", comando, Json);
         respuesta.EnsureSuccessStatusCode();
         return await respuesta.LeerAsync<EmpleadoDetalleDto>();
+    }
+
+    /// <summary>Crea (como Admin) un usuario para el empleado con la clave estándar de pruebas.</summary>
+    public static async Task<UsuarioDto> CrearUsuarioAsync(
+        this HttpClient admin, int empleadoId, Rol rol, IReadOnlyList<int>? regiones = null)
+    {
+        var respuesta = await admin.PostAsJsonAsync("/api/v1/usuarios",
+            new CrearUsuarioComando(empleadoId, null, rol, regiones, ApiFactory.ClaveUsuarios), Json);
+        respuesta.EnsureSuccessStatusCode();
+        return await respuesta.LeerAsync<UsuarioDto>();
     }
 }

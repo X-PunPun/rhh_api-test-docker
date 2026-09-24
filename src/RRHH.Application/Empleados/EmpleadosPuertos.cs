@@ -1,4 +1,5 @@
 using RRHH.Application.Comun;
+using RRHH.Application.Seguridad;
 using RRHH.Domain.Comun;
 using RRHH.Domain.Empleados;
 
@@ -20,12 +21,16 @@ public interface IEmpleadoRepositorio
 
 public interface IEmpleadoConsultas
 {
-    Task<Pagina<EmpleadoResumenDto>> BuscarAsync(FiltroEmpleados filtro, CancellationToken ct);
+    Task<Pagina<EmpleadoResumenDto>> BuscarAsync(FiltroEmpleados filtro, AlcanceDatos alcance, CancellationToken ct);
+
+    /// <summary>¿El empleado existe y es visible con este alcance?</summary>
+    Task<bool> EstaEnAlcanceAsync(int empleadoId, AlcanceDatos alcance, CancellationToken ct);
 
     Task<EmpleadoDetalleDto?> ObtenerDetalleAsync(int id, CancellationToken ct);
 
-    Task<IReadOnlyList<EmpleadoResumenDto>> ListarSubordinadosAsync(int jefeId, CancellationToken ct);
+    Task<IReadOnlyList<EmpleadoResumenDto>> ListarSubordinadosAsync(int jefeId, AlcanceDatos alcance, CancellationToken ct);
 
     /// <summary>Lista sin paginar para exportaciones (a lo más <paramref name="maximo"/> + 1 filas).</summary>
-    Task<IReadOnlyList<EmpleadoResumenDto>> ListarParaExportarAsync(FiltroEmpleados filtro, int maximo, CancellationToken ct);
+    Task<IReadOnlyList<EmpleadoResumenDto>> ListarParaExportarAsync(
+        FiltroEmpleados filtro, AlcanceDatos alcance, int maximo, CancellationToken ct);
 }

@@ -1,4 +1,5 @@
 using RRHH.Application.Comun;
+using RRHH.Application.Seguridad;
 using RRHH.Domain.Organizacion;
 
 namespace RRHH.Application.Organizacion;
@@ -22,6 +23,7 @@ internal sealed class OrganizacionServicio(
     IDepartamentoRepositorio departamentos,
     ICargoRepositorio cargos,
     IOrganizacionConsultas consultas,
+    IUsuarioActual usuarioActual,
     IUnidadDeTrabajo unidadDeTrabajo) : IOrganizacionServicio
 {
     public Task<IReadOnlyList<DepartamentoDto>> ListarDepartamentosAsync(bool? activo, CancellationToken ct) =>
@@ -32,6 +34,7 @@ internal sealed class OrganizacionServicio(
 
     public async Task<DepartamentoDto> CrearDepartamentoAsync(GuardarDepartamentoComando comando, CancellationToken ct)
     {
+        usuarioActual.ExigirGestor();
         var departamento = Departamento.Crear(comando.Nombre, comando.Descripcion);
         await AsegurarNombreDepartamentoLibreAsync(departamento.Nombre, null, ct);
 
@@ -43,6 +46,7 @@ internal sealed class OrganizacionServicio(
 
     public async Task<DepartamentoDto> ActualizarDepartamentoAsync(int id, GuardarDepartamentoComando comando, CancellationToken ct)
     {
+        usuarioActual.ExigirGestor();
         var departamento = await ObtenerEntidadDepartamentoAsync(id, ct);
         departamento.Actualizar(comando.Nombre, comando.Descripcion);
         await AsegurarNombreDepartamentoLibreAsync(departamento.Nombre, id, ct);
@@ -53,6 +57,7 @@ internal sealed class OrganizacionServicio(
 
     public async Task CambiarEstadoDepartamentoAsync(int id, bool activo, CancellationToken ct)
     {
+        usuarioActual.ExigirGestor();
         var departamento = await ObtenerEntidadDepartamentoAsync(id, ct);
 
         if (!activo)
@@ -82,6 +87,7 @@ internal sealed class OrganizacionServicio(
 
     public async Task<CargoDto> CrearCargoAsync(CrearCargoComando comando, CancellationToken ct)
     {
+        usuarioActual.ExigirGestor();
         var departamento = await ObtenerEntidadDepartamentoAsync(comando.DepartamentoId, ct);
         if (!departamento.Activo)
         {
@@ -99,6 +105,7 @@ internal sealed class OrganizacionServicio(
 
     public async Task<CargoDto> RenombrarCargoAsync(int id, RenombrarCargoComando comando, CancellationToken ct)
     {
+        usuarioActual.ExigirGestor();
         var cargo = await cargos.ObtenerAsync(id, ct) ?? throw new RecursoNoEncontradoException("Cargo", id);
         cargo.Renombrar(comando.Nombre);
         await AsegurarNombreCargoLibreAsync(cargo.DepartamentoId, cargo.Nombre, id, ct);
@@ -109,6 +116,7 @@ internal sealed class OrganizacionServicio(
 
     public async Task DesactivarCargoAsync(int id, CancellationToken ct)
     {
+        usuarioActual.ExigirGestor();
         var cargo = await cargos.ObtenerAsync(id, ct) ?? throw new RecursoNoEncontradoException("Cargo", id);
         cargo.Desactivar();
         await unidadDeTrabajo.GuardarCambiosAsync(ct);

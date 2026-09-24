@@ -9,3 +9,6 @@ public sealed class ConflictoException(string mensaje) : Exception(mensaje);
 
 /// <summary>El usuario actual no puede realizar la operación sobre ese recurso (→ 403).</summary>
 public sealed class AccesoDenegadoException(string mensaje) : Exception(mensaje);
+
+/// <summary>Falta autenticación o las credenciales/tokens no son válidos (→ 401).</summary>
+public sealed class NoAutenticadoException(string mensaje) : Exception(mensaje);

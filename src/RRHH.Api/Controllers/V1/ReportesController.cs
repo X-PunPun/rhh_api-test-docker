@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RRHH.Api.Seguridad;
 using RRHH.Application.Empleados;
 using RRHH.Application.Reportes;
 
@@ -6,6 +8,7 @@ namespace RRHH.Api.Controllers.V1;
 
 /// <summary>Indicadores y exportaciones.</summary>
 [ApiController]
+[Authorize(Policy = Politicas.Gestor)]
 [Route("api/v1/reportes")]
 public sealed class ReportesController(IReportesServicio reportes) : ControllerBase
 {

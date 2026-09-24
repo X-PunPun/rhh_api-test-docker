@@ -33,9 +33,9 @@ public sealed record EmpleadoDetalleDto(
     ReferenciaDto Region,
     ReferenciaDto Comuna,
     ReferenciaDto? Jefe,
-    Afp Afp,
-    SistemaSalud SistemaSalud,
-    int AniosServicioPrevios,
+    Afp? Afp,
+    SistemaSalud? SistemaSalud,
+    int? AniosServicioPrevios,
     int CantidadSubordinados);
 
 /// <summary>Filtros de búsqueda de empleados (todos opcionales).</summary>
