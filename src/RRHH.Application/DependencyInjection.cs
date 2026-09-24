@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using RRHH.Application.Empleados;
 using RRHH.Application.Organizacion;
 using RRHH.Application.Reportes;
+using RRHH.Application.Seguridad;
 using RRHH.Application.Seguros;
 using RRHH.Application.Ubicacion;
 using RRHH.Application.Vacaciones;
@@ -22,6 +23,8 @@ public static class DependencyInjection
         services.AddScoped<IFeriadoServicio, FeriadoServicio>();
         services.AddScoped<ISegurosServicio, SegurosServicio>();
         services.AddScoped<IReportesServicio, ReportesServicio>();
+        services.AddScoped<IAutenticacionServicio, AutenticacionServicio>();
+        services.AddScoped<IUsuariosServicio, UsuariosServicio>();
 
         return services;
     }

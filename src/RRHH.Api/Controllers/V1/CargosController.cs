@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RRHH.Api.Seguridad;
 using RRHH.Application.Organizacion;
 
 namespace RRHH.Api.Controllers.V1;
@@ -20,6 +22,7 @@ public sealed class CargosController(IOrganizacionServicio organizacion) : Contr
     public Task<CargoDto> Obtener(int id, CancellationToken ct) => organizacion.ObtenerCargoAsync(id, ct);
 
     /// <summary>Crea un cargo dentro de un departamento activo.</summary>
+    [Authorize(Policy = Politicas.Gestor)]
     [HttpPost]
     [ProducesResponseType<CargoDto>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -30,11 +33,13 @@ public sealed class CargosController(IOrganizacionServicio organizacion) : Contr
     }
 
     /// <summary>Renombra un cargo.</summary>
+    [Authorize(Policy = Politicas.Gestor)]
     [HttpPut("{id:int}")]
     public Task<CargoDto> Renombrar(int id, RenombrarCargoComando comando, CancellationToken ct) =>
         organizacion.RenombrarCargoAsync(id, comando, ct);
 
     /// <summary>Desactiva un cargo.</summary>
+    [Authorize(Policy = Politicas.Gestor)]
     [HttpPost("{id:int}/desactivar")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Desactivar(int id, CancellationToken ct)

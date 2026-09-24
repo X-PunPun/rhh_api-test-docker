@@ -29,8 +29,8 @@ Las dependencias apuntan hacia adentro: `Api → Infrastructure → Application 
 - *Reglas en el dominio*: el controlador no valida negocio; la entidad no puede quedar en un estado inválido.
 - *Errores estándar*: ProblemDetails (RFC 9457) → 400 regla de negocio · 403 sin permiso · 404 no existe · 409 conflicto.
 - *Concurrencia optimista* (`rowversion`) en empleados y solicitudes.
-- *Puerto `IUsuarioActual`*: hoy lo implementa un adaptador temporal (cabecera `X-Empleado-Id`); en la fase de
-  seguridad se reemplaza por JWT **sin tocar los casos de uso**.
+- *Puerto `IUsuarioActual`*: los casos de uso preguntan "¿quién eres?" sin saber de dónde sale; el adaptador lo lee
+  del JWT. Al pasar de la identidad temporal a JWT no se modificó ningún caso de uso.
 
 ## Módulos y endpoints (v1)
 
@@ -39,6 +39,8 @@ Las dependencias apuntan hacia adentro: `Api → Infrastructure → Application 
 | Ubicación | `GET /regiones` · `GET /regiones/{id}/comunas` (16 regiones, 346 comunas con código CUT) |
 | Organización | CRUD `/departamentos` · CRUD `/cargos` · activar/desactivar |
 | Empleados | `GET /empleados` (filtros por región, comuna, depto., cargo, jefe, estado, texto/RUT + paginación) · ficha · `/subordinados` · crear · actualizar · desvincular |
+| Autenticación | `POST /auth/login` · `/auth/renovar` · `/auth/logout` · `GET /auth/yo` · `POST /auth/cambiar-clave` |
+| Usuarios (Admin) | CRUD `/usuarios` · rol y regiones · activar/desactivar · desbloquear · restablecer clave · `GET /auditoria` |
 | Vacaciones | saldo (`/empleados/{id}/vacaciones/saldo`) · solicitar · `/vacaciones/pendientes-equipo` · aprobar · rechazar · cancelar · `/feriados` |
 | Seguros | CRUD `/planes-seguro` · afiliar / terminar (`/empleados/{id}/seguros`) |
 | Reportes | `GET /reportes/resumen` (dashboard) · `GET /reportes/empleados/excel` |
@@ -70,7 +72,11 @@ docker compose up -d
 # 2. Cadena de conexión (queda fuera del repositorio)
 dotnet user-secrets set "ConnectionStrings:RRHH" "Server=localhost,14333;Database=RRHH;User Id=sa;Password=<tu-clave>;TrustServerCertificate=True" --project src/RRHH.Api
 
-# 3. Ejecutar (en Development aplica migraciones y carga datos demo)
+# 3. Llave para firmar los JWT (mínimo 32 caracteres, fuera del repositorio)
+$llave = [Convert]::ToBase64String((1..48 | ForEach-Object { [byte](Get-Random -Maximum 256) }))
+dotnet user-secrets set "Jwt:Llave" $llave --project src/RRHH.Api
+
+# 4. Ejecutar (en Development aplica migraciones y carga datos y usuarios demo)
 dotnet run --project src/RRHH.Api --launch-profile https
 ```
 
@@ -81,8 +87,41 @@ dotnet run --project src/RRHH.Api --launch-profile https
 **Datos demo** (solo Development, si la base está vacía): 6 departamentos, 13 cargos, 17 empleados ficticios en
 distintas regiones con jerarquía, planes de seguro y solicitudes de vacaciones. Ejemplos listos en `src/RRHH.Api/RRHH.Api.http`.
 
-Para probar endpoints que requieren identidad, envía la cabecera `X-Empleado-Id` (Swagger la muestra como campo).
-Ej.: el empleado 7 solicita vacaciones y el 5 (su jefe) las aprueba.
+## Seguridad (autenticación y autorización)
+
+Todo endpoint exige un **JWT** salvo `login`, `renovar`, `logout` y `/health`.
+
+1. `POST /api/v1/auth/login` con email y clave → `tokenAcceso` (15 min) y `tokenRenovacion` (7 días).
+2. En Swagger: botón **Authorize** → pegar el `tokenAcceso`.
+3. `POST /api/v1/auth/renovar` entrega un par nuevo y revoca el anterior (si un token usado reaparece, se cierran todas las sesiones).
+
+| Rol | Qué ve | Qué puede modificar |
+|---|---|---|
+| Admin | Todo | Todo + usuarios y auditoría |
+| RRHH | Empleados de sus regiones asignadas | Personal, seguros y catálogos de sus regiones |
+| Jefatura | Su ficha y su equipo directo (sin datos previsionales) | Aprueba o rechaza vacaciones de su equipo |
+| Empleado | Solo su ficha | Solicita y cancela sus vacaciones |
+
+Si un usuario pide un empleado fuera de su alcance recibe **404** (no se revela que existe). El mismo alcance se aplica en
+búsquedas, fichas, subordinados, reportes y exportación Excel.
+
+Otras medidas: bloqueo de 15 min tras 5 intentos fallidos, límite de solicitudes (login por IP y global por usuario),
+claves PBKDF2, tokens de renovación guardados como hash, CORS con orígenes explícitos, cabeceras de seguridad,
+`Cache-Control: no-store` y bitácora de auditoría (`GET /api/v1/auditoria`, solo Admin).
+
+**Usuarios demo** (solo Development, clave `Demo.Rrhh2026`):
+
+| Email | Rol |
+|---|---|
+| carolina.fuentes@empresa-demo.cl | Admin |
+| marcela.soto@empresa-demo.cl | RRHH (todas las regiones) |
+| diego.munoz@empresa-demo.cl | RRHH (Región Metropolitana) |
+| valentina.reyes@empresa-demo.cl | RRHH (Valparaíso) |
+| rodrigo.vergara@empresa-demo.cl | Jefatura (Tecnología) |
+| matias.gonzalez@empresa-demo.cl | Empleado |
+
+**Administrador inicial en otros ambientes:** si no existe ningún Admin, la API lo crea al iniciar con
+`Seguridad:AdminInicial:Email` y `Seguridad:AdminInicial:Clave` (user-secrets o variables de entorno).
 
 ## Pruebas
 
@@ -99,11 +138,13 @@ dotnet test tests/RRHH.Domain.Tests           # solo dominio
 | Cambié la clave del `.env` y sigue fallando | SQL Server guarda la clave al crear el volumen. Recréalo: `docker compose down -v` y `docker compose up -d`. |
 | `address already in use` al presionar F5 | Hay otra instancia corriendo (por ejemplo, `dotnet run` en una consola). Deténla con Ctrl+C. |
 | Pruebas de integración fallan al iniciar | Docker Desktop no está en ejecución. |
+| `Falta 'Jwt:Llave'` al iniciar | Configura la llave con `dotnet user-secrets set "Jwt:Llave" ...` (paso 3). |
+| 401 en todos los endpoints | Falta el token o expiró (15 min). Vuelve a hacer login o usa `/auth/renovar`. |
 
 ## Hoja de ruta
 
 1. ✅ Backend: dominio, casos de uso, persistencia, reportes, pruebas.
-2. ⏳ Seguridad: Identity + JWT + refresh token, roles (Admin, RRHH, Jefatura, Empleado), alcance por región/jefatura, rate limiting, CORS, auditoría.
+2. ✅ Seguridad: JWT + token de renovación rotativo, roles, alcance por región/jefatura, bloqueo, rate limiting, CORS, auditoría.
 3. ⏳ Frontend.
 
 ## Seguridad

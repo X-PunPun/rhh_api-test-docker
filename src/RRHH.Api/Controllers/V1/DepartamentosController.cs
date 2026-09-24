@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RRHH.Api.Seguridad;
 using RRHH.Application.Organizacion;
 
 namespace RRHH.Api.Controllers.V1;
@@ -21,6 +23,7 @@ public sealed class DepartamentosController(IOrganizacionServicio organizacion) 
     public Task<DepartamentoDto> Obtener(int id, CancellationToken ct) => organizacion.ObtenerDepartamentoAsync(id, ct);
 
     /// <summary>Crea un departamento.</summary>
+    [Authorize(Policy = Politicas.Gestor)]
     [HttpPost]
     [ProducesResponseType<DepartamentoDto>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -31,11 +34,13 @@ public sealed class DepartamentosController(IOrganizacionServicio organizacion) 
     }
 
     /// <summary>Actualiza nombre y descripción.</summary>
+    [Authorize(Policy = Politicas.Gestor)]
     [HttpPut("{id:int}")]
     public Task<DepartamentoDto> Actualizar(int id, GuardarDepartamentoComando comando, CancellationToken ct) =>
         organizacion.ActualizarDepartamentoAsync(id, comando, ct);
 
     /// <summary>Activa un departamento.</summary>
+    [Authorize(Policy = Politicas.Gestor)]
     [HttpPost("{id:int}/activar")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Activar(int id, CancellationToken ct)
@@ -45,6 +50,7 @@ public sealed class DepartamentosController(IOrganizacionServicio organizacion) 
     }
 
     /// <summary>Desactiva un departamento (solo si no tiene empleados activos).</summary>
+    [Authorize(Policy = Politicas.Gestor)]
     [HttpPost("{id:int}/desactivar")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using RRHH.Domain.Calendario;
 using RRHH.Domain.Empleados;
 using RRHH.Domain.Organizacion;
+using RRHH.Domain.Seguridad;
 using RRHH.Domain.Seguros;
 using RRHH.Domain.Ubicacion;
 using RRHH.Domain.Vacaciones;
@@ -21,6 +22,9 @@ public sealed class RrhhDbContext(DbContextOptions<RrhhDbContext> options) : DbC
     public DbSet<SolicitudVacaciones> SolicitudesVacaciones => Set<SolicitudVacaciones>();
     public DbSet<PlanSeguro> PlanesSeguro => Set<PlanSeguro>();
     public DbSet<AfiliacionSeguro> AfiliacionesSeguro => Set<AfiliacionSeguro>();
+    public DbSet<Usuario> Usuarios => Set<Usuario>();
+    public DbSet<TokenRenovacion> TokensRenovacion => Set<TokenRenovacion>();
+    public DbSet<RegistroAuditoria> Auditoria => Set<RegistroAuditoria>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

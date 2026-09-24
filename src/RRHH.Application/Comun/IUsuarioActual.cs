@@ -1,12 +1,22 @@
+using RRHH.Domain.Seguridad;
+
 namespace RRHH.Application.Comun;
 
 /// <summary>
-/// Puerto que expone la identidad de quien ejecuta la operación.
-/// Hoy lo implementa un adaptador de desarrollo (cabecera X-Empleado-Id);
-/// en la fase de seguridad se reemplaza por uno que lee los claims del JWT,
-/// sin tocar los casos de uso.
+/// Puerto con la identidad de quien ejecuta la operación.
+/// La implementación (adaptador) lee los claims del JWT validado por ASP.NET Core;
+/// los casos de uso no saben de dónde viene.
 /// </summary>
 public interface IUsuarioActual
 {
+    int? UsuarioId { get; }
     int? EmpleadoId { get; }
+    string? Email { get; }
+    Rol? Rol { get; }
+
+    /// <summary>Regiones asignadas (solo rol RRHH).</summary>
+    IReadOnlyList<int> Regiones { get; }
+
+    /// <summary>IP de origen (para auditoría).</summary>
+    string? Ip { get; }
 }

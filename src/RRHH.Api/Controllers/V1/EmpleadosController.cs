@@ -1,5 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RRHH.Api.OpenApi;
+using RRHH.Api.Seguridad;
 using RRHH.Application.Comun;
 using RRHH.Application.Empleados;
 using RRHH.Application.Seguros;
@@ -33,6 +34,7 @@ public sealed class EmpleadosController(
         empleados.ListarSubordinadosAsync(id, ct);
 
     /// <summary>Registra un empleado (valida RUT, email único, cargo/departamento y jefatura).</summary>
+    [Authorize(Policy = Politicas.Gestor)]
     [HttpPost]
     [ProducesResponseType<EmpleadoDetalleDto>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -44,12 +46,14 @@ public sealed class EmpleadosController(
     }
 
     /// <summary>Actualiza contacto, asignación, jefatura y previsión.</summary>
+    [Authorize(Policy = Politicas.Gestor)]
     [HttpPut("{id:int}")]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public Task<EmpleadoDetalleDto> Actualizar(int id, ActualizarEmpleadoComando comando, CancellationToken ct) =>
         empleados.ActualizarAsync(id, comando, ct);
 
     /// <summary>Desvincula al empleado (no puede tener subordinados activos).</summary>
+    [Authorize(Policy = Politicas.Gestor)]
     [HttpPost("{id:int}/desvincular")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -72,7 +76,6 @@ public sealed class EmpleadosController(
 
     /// <summary>El propio empleado solicita vacaciones (se calculan días hábiles descontando feriados).</summary>
     [HttpPost("{id:int}/vacaciones")]
-    [RequiereIdentidadDemo]
     [ProducesResponseType<SolicitudVacacionesDto>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -91,6 +94,7 @@ public sealed class EmpleadosController(
         seguros.ListarAfiliacionesAsync(id, ct);
 
     /// <summary>Afilia al empleado a un plan de seguro.</summary>
+    [Authorize(Policy = Politicas.Gestor)]
     [HttpPost("{id:int}/seguros")]
     [ProducesResponseType<AfiliacionSeguroDto>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -101,6 +105,7 @@ public sealed class EmpleadosController(
     }
 
     /// <summary>Termina una afiliación de seguro del empleado.</summary>
+    [Authorize(Policy = Politicas.Gestor)]
     [HttpPost("{id:int}/seguros/{afiliacionId:int}/terminar")]
     public Task<AfiliacionSeguroDto> TerminarSeguro(int id, int afiliacionId, TerminarAfiliacionComando comando, CancellationToken ct) =>
         seguros.TerminarAfiliacionAsync(id, afiliacionId, comando, ct);

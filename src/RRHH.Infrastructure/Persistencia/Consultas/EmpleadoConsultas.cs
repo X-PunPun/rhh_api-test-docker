@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RRHH.Application.Comun;
 using RRHH.Application.Empleados;
+using RRHH.Application.Seguridad;
 using RRHH.Domain.Comun;
 using RRHH.Domain.Empleados;
 
@@ -8,9 +9,9 @@ namespace RRHH.Infrastructure.Persistencia.Consultas;
 
 internal sealed class EmpleadoConsultas(RrhhDbContext db) : IEmpleadoConsultas
 {
-    public async Task<Pagina<EmpleadoResumenDto>> BuscarAsync(FiltroEmpleados filtro, CancellationToken ct)
+    public async Task<Pagina<EmpleadoResumenDto>> BuscarAsync(FiltroEmpleados filtro, AlcanceDatos alcance, CancellationToken ct)
     {
-        var consulta = AplicarFiltro(db.Empleados.AsNoTracking(), filtro);
+        var consulta = AplicarFiltro(AplicarAlcance(db.Empleados.AsNoTracking(), alcance), filtro);
         var total = await consulta.CountAsync(ct);
 
         var filas = await Proyectar(Ordenar(consulta)
@@ -22,17 +23,22 @@ internal sealed class EmpleadoConsultas(RrhhDbContext db) : IEmpleadoConsultas
     }
 
     public async Task<IReadOnlyList<EmpleadoResumenDto>> ListarParaExportarAsync(
-        FiltroEmpleados filtro, int maximo, CancellationToken ct)
+        FiltroEmpleados filtro, AlcanceDatos alcance, int maximo, CancellationToken ct)
     {
-        var filas = await Proyectar(Ordenar(AplicarFiltro(db.Empleados.AsNoTracking(), filtro)).Take(maximo + 1))
+        var consulta = AplicarFiltro(AplicarAlcance(db.Empleados.AsNoTracking(), alcance), filtro);
+        var filas = await Proyectar(Ordenar(consulta).Take(maximo + 1))
             .ToListAsync(ct);
 
         return filas.Select(AResumen).ToList();
     }
 
-    public async Task<IReadOnlyList<EmpleadoResumenDto>> ListarSubordinadosAsync(int jefeId, CancellationToken ct)
+    public Task<bool> EstaEnAlcanceAsync(int empleadoId, AlcanceDatos alcance, CancellationToken ct) =>
+        AplicarAlcance(db.Empleados.AsNoTracking(), alcance).AnyAsync(e => e.Id == empleadoId, ct);
+
+    public async Task<IReadOnlyList<EmpleadoResumenDto>> ListarSubordinadosAsync(int jefeId, AlcanceDatos alcance, CancellationToken ct)
     {
-        var filas = await Proyectar(Ordenar(db.Empleados.AsNoTracking().Where(e => e.JefeId == jefeId)))
+        var consulta = AplicarAlcance(db.Empleados.AsNoTracking(), alcance).Where(e => e.JefeId == jefeId);
+        var filas = await Proyectar(Ordenar(consulta))
             .ToListAsync(ct);
 
         return filas.Select(AResumen).ToList();
@@ -91,6 +97,24 @@ internal sealed class EmpleadoConsultas(RrhhDbContext db) : IEmpleadoConsultas
             fila.SistemaSalud,
             fila.AniosServicioPrevios,
             fila.Subordinados);
+    }
+
+    /// <summary>
+    /// Restringe los empleados visibles según el alcance del usuario. Se aplica en TODAS las lecturas
+    /// (búsqueda, ficha, subordinados, exportación), así no hay un camino con menos control.
+    /// </summary>
+    internal static IQueryable<Empleado> AplicarAlcance(IQueryable<Empleado> consulta, AlcanceDatos alcance)
+    {
+        if (alcance.Total)
+        {
+            return consulta;
+        }
+
+        var regiones = alcance.Regiones.ToArray();
+        var propio = alcance.EmpleadoPropioId ?? -1;
+        var jefe = alcance.JefeId ?? -1;
+
+        return consulta.Where(e => regiones.Contains(e.Comuna.RegionId) || e.Id == propio || e.JefeId == jefe);
     }
 
     private static IQueryable<Empleado> AplicarFiltro(IQueryable<Empleado> consulta, FiltroEmpleados filtro)

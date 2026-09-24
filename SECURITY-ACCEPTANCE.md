@@ -57,19 +57,23 @@ Hallazgos **Críticos o Altos bloquean el merge**.
 - [ ] HTTPS + HSTS fuera de desarrollo.
 - [ ] Dependencias sin vulnerabilidades conocidas: `dotnet list package --vulnerable`.
 
-## Estado actual (fin de la fase backend)
+## Estado actual (fin de la fase de seguridad)
 
 | Punto | Estado |
 |---|---|
-| Errores sin stack trace (ProblemDetails) | ✅ |
-| OpenAPI / Swagger / Scalar solo en Development | ✅ |
-| Secretos fuera del repo (user-secrets, `.env`) | ✅ |
-| Reglas de negocio en el dominio + concurrencia optimista | ✅ |
-| Exportación Excel: tope de filas + neutralización de fórmulas | ✅ |
-| Autorización por recurso en vacaciones (jefatura directa, no auto-aprobación) | ✅ (con identidad temporal) |
-| **Identidad por cabecera `X-Empleado-Id`** | ⚠️ **Temporal, NO seguro**: se reemplaza por JWT en la fase de seguridad |
-| Autenticación, roles, alcance por región en listados/exportaciones | ⏳ Fase de seguridad |
-| Rate limiting, CORS, auditoría de accesos | ⏳ Fase de seguridad |
+| Todo endpoint autenticado salvo login/renovar/logout/health (política por defecto) | ✅ |
+| JWT: firma HS256, `iss`, `aud`, `exp` validados; acceso de 15 min; llave fuera del repo | ✅ |
+| Token de renovación rotativo, guardado como hash, revocable; reutilización → se revocan todas las sesiones | ✅ |
+| Cambio de clave/rol/desactivación invalida sesiones (sello de seguridad) | ✅ |
+| Bloqueo 15 min tras 5 intentos; mensaje de login único (sin enumeración); rate limiting login y global | ✅ |
+| Alcance por rol aplicado en fichas, búsquedas, subordinados, reportes y Excel (404 fuera de alcance) | ✅ |
+| RRHH solo gestiona su(s) región(es); nadie se asigna roles; Admin no puede quitarse privilegios | ✅ |
+| Datos previsionales ocultos para Jefatura (Ley 21.719) | ✅ |
+| Auditoría de escrituras y eventos de login | ✅ |
+| CORS explícito, cabeceras de seguridad, `no-store`, HTTPS + HSTS fuera de desarrollo | ✅ |
+| Errores sin stack trace; OpenAPI solo en Development; secretos fuera del repo | ✅ |
+| Pruebas negativas de integración (401/403/404, bloqueo, reuso de token) | ✅ |
+| Auditoría final con la skill de Cloudflare | ⏳ Fase 4 |
 
 ## Auditoría final
 

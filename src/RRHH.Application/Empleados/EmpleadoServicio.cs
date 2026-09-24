@@ -1,5 +1,6 @@
 using RRHH.Application.Comun;
 using RRHH.Application.Organizacion;
+using RRHH.Application.Seguridad;
 using RRHH.Application.Ubicacion;
 using RRHH.Domain.Comun;
 using RRHH.Domain.Empleados;
@@ -22,25 +23,34 @@ internal sealed class EmpleadoServicio(
     IDepartamentoRepositorio departamentos,
     ICargoRepositorio cargos,
     IUbicacionRepositorio ubicacion,
+    IUsuarioActual usuarioActual,
     IUnidadDeTrabajo unidadDeTrabajo) : IEmpleadoServicio
 {
     /// <summary>Límite de seguridad al recorrer la jerarquía (evita bucles infinitos con datos corruptos).</summary>
     private const int ProfundidadMaximaJerarquia = 50;
 
     public Task<Pagina<EmpleadoResumenDto>> BuscarAsync(FiltroEmpleados filtro, CancellationToken ct) =>
-        consultas.BuscarAsync(filtro, ct);
+        consultas.BuscarAsync(filtro, usuarioActual.Alcance(), ct);
 
-    public async Task<EmpleadoDetalleDto> ObtenerAsync(int id, CancellationToken ct) =>
-        await consultas.ObtenerDetalleAsync(id, ct) ?? throw new RecursoNoEncontradoException("Empleado", id);
+    public async Task<EmpleadoDetalleDto> ObtenerAsync(int id, CancellationToken ct)
+    {
+        await AsegurarEnAlcanceAsync(id, ct);
+        var dto = await consultas.ObtenerDetalleAsync(id, ct) ?? throw new RecursoNoEncontradoException("Empleado", id);
+
+        // Datos previsionales (salud, AFP) solo para el propio empleado y gestores de RR.HH. (Ley 21.719).
+        var puedeVerPrevision = usuarioActual.EsGestor() || usuarioActual.EmpleadoId == id;
+        return puedeVerPrevision ? dto : dto with { Afp = null, SistemaSalud = null, AniosServicioPrevios = null };
+    }
 
     public async Task<IReadOnlyList<EmpleadoResumenDto>> ListarSubordinadosAsync(int jefeId, CancellationToken ct)
     {
-        _ = await ObtenerEntidadAsync(jefeId, ct);
-        return await consultas.ListarSubordinadosAsync(jefeId, ct);
+        await AsegurarEnAlcanceAsync(jefeId, ct);
+        return await consultas.ListarSubordinadosAsync(jefeId, usuarioActual.Alcance(), ct);
     }
 
     public async Task<EmpleadoDetalleDto> CrearAsync(CrearEmpleadoComando comando, CancellationToken ct)
     {
+        usuarioActual.ExigirGestor();
         var rut = Rut.Crear(comando.Rut);
 
         var empleado = Empleado.Crear(
@@ -65,7 +75,7 @@ internal sealed class EmpleadoServicio(
 
         await AsegurarEmailLibreAsync(empleado.Email, null, ct);
         await ValidarAsignacionAsync(comando.DepartamentoId, comando.CargoId, ct);
-        await ValidarComunaAsync(comando.ComunaId, ct);
+        await ValidarComunaGestionableAsync(comando.ComunaId, ct);
 
         if (comando.JefeId is { } jefeId)
         {
@@ -81,11 +91,13 @@ internal sealed class EmpleadoServicio(
 
     public async Task<EmpleadoDetalleDto> ActualizarAsync(int id, ActualizarEmpleadoComando comando, CancellationToken ct)
     {
+        usuarioActual.ExigirGestor();
+        await AsegurarEnAlcanceAsync(id, ct);
         var empleado = await ObtenerEntidadAsync(id, ct);
 
         empleado.ActualizarContacto(comando.Email, comando.ComunaId);
         await AsegurarEmailLibreAsync(empleado.Email, id, ct);
-        await ValidarComunaAsync(comando.ComunaId, ct);
+        await ValidarComunaGestionableAsync(comando.ComunaId, ct);
 
         if (empleado.DepartamentoId != comando.DepartamentoId || empleado.CargoId != comando.CargoId)
         {
@@ -111,9 +123,12 @@ internal sealed class EmpleadoServicio(
 
     public async Task DesvincularAsync(int id, DesvincularEmpleadoComando comando, CancellationToken ct)
     {
+        usuarioActual.ExigirGestor();
+        await AsegurarEnAlcanceAsync(id, ct);
         var empleado = await ObtenerEntidadAsync(id, ct);
 
-        var subordinados = await consultas.ListarSubordinadosAsync(id, ct);
+        // Se revisan TODOS los subordinados, no solo los visibles para el usuario.
+        var subordinados = await consultas.ListarSubordinadosAsync(id, AlcanceDatos.Todo, ct);
         if (subordinados.Any(s => s.Activo))
         {
             throw new ConflictoException(
@@ -154,11 +169,24 @@ internal sealed class EmpleadoServicio(
         }
     }
 
-    private async Task ValidarComunaAsync(int comunaId, CancellationToken ct)
+    /// <summary>La comuna debe existir y su región debe estar dentro de las que el usuario gestiona.</summary>
+    private async Task ValidarComunaGestionableAsync(int comunaId, CancellationToken ct)
     {
-        if (!await ubicacion.ExisteComunaAsync(comunaId, ct))
+        var regionId = await ubicacion.ObtenerRegionDeComunaAsync(comunaId, ct)
+            ?? throw new RecursoNoEncontradoException("Comuna", comunaId);
+
+        if (!usuarioActual.PuedeGestionarRegion(regionId))
         {
-            throw new RecursoNoEncontradoException("Comuna", comunaId);
+            throw new AccesoDenegadoException("No tiene permisos para gestionar personal en esa región.");
+        }
+    }
+
+    /// <summary>Si el empleado no es visible para el usuario se responde 404 (no se revela que existe).</summary>
+    private async Task AsegurarEnAlcanceAsync(int empleadoId, CancellationToken ct)
+    {
+        if (!await consultas.EstaEnAlcanceAsync(empleadoId, usuarioActual.Alcance(), ct))
+        {
+            throw new RecursoNoEncontradoException("Empleado", empleadoId);
         }
     }
 

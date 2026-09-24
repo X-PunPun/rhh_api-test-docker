@@ -1,5 +1,6 @@
 using RRHH.Application.Comun;
 using RRHH.Application.Empleados;
+using RRHH.Application.Seguridad;
 
 namespace RRHH.Application.Reportes;
 
@@ -13,6 +14,8 @@ internal sealed class ReportesServicio(
     IReportesConsultas consultas,
     IEmpleadoConsultas empleados,
     IExportadorExcel exportador,
+    IUsuarioActual usuarioActual,
+    IRegistroAuditoria auditoria,
     TimeProvider reloj) : IReportesServicio
 {
     /// <summary>Tope de filas por exportación (protege memoria y evita extracciones masivas).</summary>
@@ -32,12 +35,18 @@ internal sealed class ReportesServicio(
         new("Estado", e => e.Activo ? "Activo" : "Desvinculado"),
     ];
 
-    public Task<ResumenDto> ObtenerResumenAsync(CancellationToken ct) =>
-        consultas.ObtenerResumenAsync(reloj.Hoy(), ct);
+    public Task<ResumenDto> ObtenerResumenAsync(CancellationToken ct)
+    {
+        usuarioActual.ExigirGestor();
+        return consultas.ObtenerResumenAsync(reloj.Hoy(), usuarioActual.Alcance(), ct);
+    }
 
     public async Task<ArchivoDto> ExportarEmpleadosAsync(FiltroEmpleados filtro, CancellationToken ct)
     {
-        var filas = await empleados.ListarParaExportarAsync(filtro, MaximoFilasExportacion, ct);
+        usuarioActual.ExigirGestor();
+
+        // La exportación aplica el mismo alcance que la búsqueda: no es un atajo para ver más datos.
+        var filas = await empleados.ListarParaExportarAsync(filtro, usuarioActual.Alcance(), MaximoFilasExportacion, ct);
 
         if (filas.Count > MaximoFilasExportacion)
         {
@@ -47,6 +56,8 @@ internal sealed class ReportesServicio(
 
         var contenido = exportador.Generar("Empleados", filas, ColumnasEmpleados);
         var nombre = $"empleados_{reloj.GetLocalNow():yyyyMMdd_HHmm}.xlsx";
+
+        await auditoria.RegistrarAsync("reporte.empleados_excel", $"{filas.Count} filas", 200, ct: ct);
 
         return new ArchivoDto(contenido, nombre, TiposContenido.Xlsx);
     }

@@ -12,7 +12,8 @@ public interface IUbicacionRepositorio
 
     Task<bool> ExisteRegionAsync(int regionId, CancellationToken ct);
 
-    Task<bool> ExisteComunaAsync(int comunaId, CancellationToken ct);
+    /// <summary>Región a la que pertenece la comuna (null si la comuna no existe).</summary>
+    Task<int?> ObtenerRegionDeComunaAsync(int comunaId, CancellationToken ct);
 
     Task<IReadOnlyList<Comuna>> ListarComunasPorRegionAsync(int regionId, CancellationToken ct);
 }

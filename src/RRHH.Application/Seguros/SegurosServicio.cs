@@ -1,5 +1,6 @@
 using RRHH.Application.Comun;
 using RRHH.Application.Empleados;
+using RRHH.Application.Seguridad;
 using RRHH.Domain.Seguros;
 
 namespace RRHH.Application.Seguros;
@@ -21,7 +22,9 @@ internal sealed class SegurosServicio(
     IPlanSeguroRepositorio planes,
     IAfiliacionSeguroRepositorio afiliaciones,
     IEmpleadoRepositorio empleados,
+    IEmpleadoConsultas consultasEmpleados,
     ISegurosConsultas consultas,
+    IUsuarioActual usuarioActual,
     IUnidadDeTrabajo unidadDeTrabajo,
     TimeProvider reloj) : ISegurosServicio
 {
@@ -33,6 +36,7 @@ internal sealed class SegurosServicio(
 
     public async Task<PlanSeguroDto> CrearPlanAsync(GuardarPlanSeguroComando comando, CancellationToken ct)
     {
+        usuarioActual.ExigirGestor();
         var plan = PlanSeguro.Crear(comando.Nombre, comando.Aseguradora, comando.Tipo, comando.PrimaMensualUf);
         await AsegurarNombreLibreAsync(plan, null, ct);
 
@@ -44,6 +48,7 @@ internal sealed class SegurosServicio(
 
     public async Task<PlanSeguroDto> ActualizarPlanAsync(int id, GuardarPlanSeguroComando comando, CancellationToken ct)
     {
+        usuarioActual.ExigirGestor();
         var plan = await ObtenerEntidadPlanAsync(id, ct);
         plan.Actualizar(comando.Nombre, comando.Aseguradora, comando.Tipo, comando.PrimaMensualUf);
         await AsegurarNombreLibreAsync(plan, id, ct);
@@ -54,6 +59,7 @@ internal sealed class SegurosServicio(
 
     public async Task CambiarEstadoPlanAsync(int id, bool activo, CancellationToken ct)
     {
+        usuarioActual.ExigirGestor();
         var plan = await ObtenerEntidadPlanAsync(id, ct);
         if (activo)
         {
@@ -75,6 +81,8 @@ internal sealed class SegurosServicio(
 
     public async Task<AfiliacionSeguroDto> AfiliarAsync(int empleadoId, AfiliarSeguroComando comando, CancellationToken ct)
     {
+        usuarioActual.ExigirGestor();
+        await AsegurarEmpleadoAsync(empleadoId, ct);
         var empleado = await empleados.ObtenerAsync(empleadoId, ct)
             ?? throw new RecursoNoEncontradoException("Empleado", empleadoId);
 
@@ -104,6 +112,8 @@ internal sealed class SegurosServicio(
     public async Task<AfiliacionSeguroDto> TerminarAfiliacionAsync(
         int empleadoId, int afiliacionId, TerminarAfiliacionComando comando, CancellationToken ct)
     {
+        usuarioActual.ExigirGestor();
+        await AsegurarEmpleadoAsync(empleadoId, ct);
         // Se busca por empleado + id: evita modificar afiliaciones de otro empleado cambiando solo el id.
         var afiliacion = await afiliaciones.ObtenerAsync(empleadoId, afiliacionId, ct)
             ?? throw new RecursoNoEncontradoException("Afiliación", afiliacionId);
@@ -120,9 +130,10 @@ internal sealed class SegurosServicio(
     private async Task<PlanSeguro> ObtenerEntidadPlanAsync(int id, CancellationToken ct) =>
         await planes.ObtenerAsync(id, ct) ?? throw new RecursoNoEncontradoException("Plan de seguro", id);
 
+    /// <summary>El empleado debe existir y ser visible para el usuario (si no, 404).</summary>
     private async Task AsegurarEmpleadoAsync(int empleadoId, CancellationToken ct)
     {
-        if (await empleados.ObtenerAsync(empleadoId, ct) is null)
+        if (!await consultasEmpleados.EstaEnAlcanceAsync(empleadoId, usuarioActual.Alcance(), ct))
         {
             throw new RecursoNoEncontradoException("Empleado", empleadoId);
         }

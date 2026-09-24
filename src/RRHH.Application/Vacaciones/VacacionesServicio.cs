@@ -1,5 +1,6 @@
 using RRHH.Application.Comun;
 using RRHH.Application.Empleados;
+using RRHH.Application.Seguridad;
 using RRHH.Domain.Empleados;
 using RRHH.Domain.Vacaciones;
 
@@ -21,6 +22,7 @@ internal sealed class VacacionesServicio(
     ISolicitudVacacionesRepositorio solicitudes,
     IFeriadoRepositorio feriados,
     IEmpleadoRepositorio empleados,
+    IEmpleadoConsultas consultasEmpleados,
     IVacacionesConsultas consultas,
     IUsuarioActual usuarioActual,
     IUnidadDeTrabajo unidadDeTrabajo,
@@ -31,6 +33,7 @@ internal sealed class VacacionesServicio(
 
     public async Task<SaldoVacacionesDto> ObtenerSaldoAsync(int empleadoId, CancellationToken ct)
     {
+        await AsegurarEnAlcanceAsync(empleadoId, ct);
         var empleado = await ObtenerEmpleadoAsync(empleadoId, ct);
         var hoy = reloj.Hoy();
         var saldo = await CalcularSaldoAsync(empleado, hoy, ct);
@@ -50,12 +53,20 @@ internal sealed class VacacionesServicio(
     public async Task<IReadOnlyList<SolicitudVacacionesDto>> ListarPorEmpleadoAsync(
         int empleadoId, EstadoSolicitud? estado, CancellationToken ct)
     {
-        _ = await ObtenerEmpleadoAsync(empleadoId, ct);
+        await AsegurarEnAlcanceAsync(empleadoId, ct);
         return await consultas.ListarPorEmpleadoAsync(empleadoId, estado, ct);
     }
 
-    public async Task<SolicitudVacacionesDto> ObtenerAsync(int id, CancellationToken ct) =>
-        await consultas.ObtenerAsync(id, ct) ?? throw new RecursoNoEncontradoException("Solicitud de vacaciones", id);
+    public async Task<SolicitudVacacionesDto> ObtenerAsync(int id, CancellationToken ct)
+    {
+        var dto = await consultas.ObtenerAsync(id, ct);
+        if (dto is null || !await consultasEmpleados.EstaEnAlcanceAsync(dto.EmpleadoId, usuarioActual.Alcance(), ct))
+        {
+            throw new RecursoNoEncontradoException("Solicitud de vacaciones", id);
+        }
+
+        return dto;
+    }
 
     public Task<IReadOnlyList<SolicitudVacacionesDto>> ListarPendientesDeMiEquipoAsync(CancellationToken ct) =>
         consultas.ListarPendientesDeEquipoAsync(UsuarioRequerido(), ct);
@@ -170,8 +181,17 @@ internal sealed class VacacionesServicio(
         return usuarioId;
     }
 
+    /// <summary>Id de empleado del usuario actual (las cuentas sin empleado no participan del flujo de vacaciones).</summary>
     private int UsuarioRequerido() =>
-        usuarioActual.EmpleadoId ?? throw new AccesoDenegadoException("Debe identificarse para realizar esta operación.");
+        usuarioActual.EmpleadoId ?? throw new AccesoDenegadoException("Su usuario no está asociado a un empleado.");
+
+    private async Task AsegurarEnAlcanceAsync(int empleadoId, CancellationToken ct)
+    {
+        if (!await consultasEmpleados.EstaEnAlcanceAsync(empleadoId, usuarioActual.Alcance(), ct))
+        {
+            throw new RecursoNoEncontradoException("Empleado", empleadoId);
+        }
+    }
 
     private async Task<Empleado> ObtenerEmpleadoAsync(int id, CancellationToken ct) =>
         await empleados.ObtenerAsync(id, ct) ?? throw new RecursoNoEncontradoException("Empleado", id);

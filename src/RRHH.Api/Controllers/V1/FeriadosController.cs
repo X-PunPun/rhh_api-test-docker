@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RRHH.Api.Seguridad;
 using RRHH.Application.Vacaciones;
 
 namespace RRHH.Api.Controllers.V1;
@@ -15,6 +17,7 @@ public sealed class FeriadosController(IFeriadoServicio feriados, TimeProvider r
         feriados.ListarAsync(anio ?? reloj.GetLocalNow().Year, ct);
 
     /// <summary>Agrega un feriado.</summary>
+    [Authorize(Policy = Politicas.Gestor)]
     [HttpPost]
     [ProducesResponseType<FeriadoDto>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -25,6 +28,7 @@ public sealed class FeriadosController(IFeriadoServicio feriados, TimeProvider r
     }
 
     /// <summary>Elimina un feriado.</summary>
+    [Authorize(Policy = Politicas.Gestor)]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Eliminar(int id, CancellationToken ct)

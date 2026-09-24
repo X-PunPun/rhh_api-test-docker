@@ -1,3 +1,5 @@
+using RRHH.Application.Seguridad;
+
 namespace RRHH.Application.Reportes;
 
 /// <summary>Puerto de salida para generar planillas Excel (.xlsx).</summary>
@@ -8,5 +10,5 @@ public interface IExportadorExcel
 
 public interface IReportesConsultas
 {
-    Task<ResumenDto> ObtenerResumenAsync(DateOnly hoy, CancellationToken ct);
+    Task<ResumenDto> ObtenerResumenAsync(DateOnly hoy, AlcanceDatos alcance, CancellationToken ct);
 }
