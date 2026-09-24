@@ -1,6 +1,16 @@
-@RRHH.Api_HostAddress = http://localhost:5195
+@RRHH.Api_HostAddress = https://localhost:7052
 
-GET {{RRHH.Api_HostAddress}}/weatherforecast/
+### Estado de la API y la base de datos
+GET {{RRHH.Api_HostAddress}}/health
+
+### Listar regiones (norte a sur)
+GET {{RRHH.Api_HostAddress}}/api/v1/regiones
 Accept: application/json
 
-###
+### Comunas de la Región Metropolitana (CUT 13)
+GET {{RRHH.Api_HostAddress}}/api/v1/regiones/13/comunas
+Accept: application/json
+
+### Región inexistente -> 404
+GET {{RRHH.Api_HostAddress}}/api/v1/regiones/99/comunas
+Accept: application/json

@@ -1,23 +1,48 @@
+using RRHH.Api.Infraestructura;
+using RRHH.Application;
+using RRHH.Infrastructure;
+using Scalar.AspNetCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// ---------- Servicios ----------
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ManejadorExcepcionesGlobal>();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// ---------- Pipeline HTTP ----------
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    // Documentación solo en desarrollo (no se expone en producción).
+    app.MapOpenApi();                 // /openapi/v1.json
+    app.MapScalarApiReference();      // /scalar
+
+    if (app.Configuration.GetValue<bool>("BaseDeDatos:MigrarAlIniciar"))
+    {
+        await app.Services.AplicarMigracionesAsync();
+    }
+}
+else
+{
+    app.UseHsts();
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();
+
+// Necesario para las pruebas de integración (WebApplicationFactory<Program>).
+public partial class Program { }
