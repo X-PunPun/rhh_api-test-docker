@@ -12,5 +12,7 @@ public interface IUbicacionRepositorio
 
     Task<bool> ExisteRegionAsync(int regionId, CancellationToken ct);
 
+    Task<bool> ExisteComunaAsync(int comunaId, CancellationToken ct);
+
     Task<IReadOnlyList<Comuna>> ListarComunasPorRegionAsync(int regionId, CancellationToken ct);
 }

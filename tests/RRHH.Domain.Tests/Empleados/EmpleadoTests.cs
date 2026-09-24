@@ -23,7 +23,9 @@ public class EmpleadoTests
             fechaIngreso ?? FechaIngreso,
             departamentoId: 1,
             cargoId: 1,
-            comunaId: 13101);
+            comunaId: 13101,
+            Afp.Modelo,
+            SistemaSalud.Fonasa);
 
     [Fact]
     public void Crear_DatosValidos_EmpleadoActivoConEmailNormalizado()
@@ -105,6 +107,24 @@ public class EmpleadoTests
         empleado.Desvincular(new DateOnly(2023, 3, 1));
 
         Assert.Equal(3, empleado.AniosDeServicio(new DateOnly(2030, 1, 1)));
+    }
+
+    [Fact]
+    public void Crear_AfpInvalida_LanzaExcepcion()
+    {
+        Assert.Throws<ExcepcionDominio>(() => Empleado.Crear(
+            Rut.Crear("11.111.111-1"), "Ana", "Rojas", null, "ana@empresa.cl",
+            FechaNacimiento, FechaIngreso, 1, 1, 1, (Afp)99, SistemaSalud.Fonasa));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(61)]
+    public void ActualizarPrevision_AniosPreviosFueraDeRango_LanzaExcepcion(int anios)
+    {
+        var empleado = CrearEmpleado();
+
+        Assert.Throws<ExcepcionDominio>(() => empleado.ActualizarPrevision(Afp.Capital, SistemaSalud.Isapre, anios));
     }
 
     [Fact]

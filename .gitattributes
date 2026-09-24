@@ -1,0 +1,6 @@
+# Normaliza finales de línea (evita diffs gigantes por CRLF/LF entre Windows y Linux)
+* text=auto
+*.cs text diff=csharp
+*.sh text eol=lf
+*.png binary
+*.xlsx binary

@@ -14,6 +14,9 @@ public sealed class Empleado : Entidad<int>
     public const int LargoMaximoNombre = 100;
     public const int LargoMaximoEmail = 150;
 
+    /// <summary>Art. 68 Código del Trabajo: solo se reconocen hasta 10 años con empleadores anteriores.</summary>
+    public const int MaximoAniosPreviosReconocidos = 10;
+
     public Rut Rut { get; private set; } = null!;
     public string Nombres { get; private set; } = null!;
     public string ApellidoPaterno { get; private set; } = null!;
@@ -37,6 +40,12 @@ public sealed class Empleado : Entidad<int>
     public int? JefeId { get; private set; }
     public Empleado? Jefe { get; private set; }
 
+    public Afp Afp { get; private set; }
+    public SistemaSalud SistemaSalud { get; private set; }
+
+    /// <summary>Años trabajados con empleadores anteriores (base del feriado progresivo).</summary>
+    public int AniosServicioPrevios { get; private set; }
+
     public bool Activo => FechaTermino is null;
 
     public string NombreCompleto =>
@@ -54,7 +63,10 @@ public sealed class Empleado : Entidad<int>
         DateOnly fechaIngreso,
         int departamentoId,
         int cargoId,
-        int comunaId)
+        int comunaId,
+        Afp afp,
+        SistemaSalud sistemaSalud,
+        int aniosServicioPrevios = 0)
     {
         ArgumentNullException.ThrowIfNull(rut);
 
@@ -75,6 +87,9 @@ public sealed class Empleado : Entidad<int>
             DepartamentoId = Guardia.IdPositivo(departamentoId, nameof(DepartamentoId)),
             CargoId = Guardia.IdPositivo(cargoId, nameof(CargoId)),
             ComunaId = Guardia.IdPositivo(comunaId, nameof(ComunaId)),
+            Afp = ValidarEnum(afp, nameof(Afp)),
+            SistemaSalud = ValidarEnum(sistemaSalud, nameof(SistemaSalud)),
+            AniosServicioPrevios = ValidarAniosPrevios(aniosServicioPrevios),
         };
     }
 
@@ -108,6 +123,13 @@ public sealed class Empleado : Entidad<int>
     {
         Email = ValidarEmail(email);
         ComunaId = Guardia.IdPositivo(comunaId, nameof(ComunaId));
+    }
+
+    public void ActualizarPrevision(Afp afp, SistemaSalud sistemaSalud, int aniosServicioPrevios)
+    {
+        Afp = ValidarEnum(afp, nameof(Afp));
+        SistemaSalud = ValidarEnum(sistemaSalud, nameof(SistemaSalud));
+        AniosServicioPrevios = ValidarAniosPrevios(aniosServicioPrevios);
     }
 
     public void Desvincular(DateOnly fechaTermino)
@@ -146,6 +168,18 @@ public sealed class Empleado : Entidad<int>
         {
             throw new ExcepcionDominio("La operación no está permitida para un empleado desvinculado.");
         }
+    }
+
+    private static TEnum ValidarEnum<TEnum>(TEnum valor, string campo) where TEnum : struct, Enum
+    {
+        return Enum.IsDefined(valor) ? valor : throw new ExcepcionDominio($"El valor de '{campo}' no es válido.");
+    }
+
+    private static int ValidarAniosPrevios(int anios)
+    {
+        return anios is >= 0 and <= 60
+            ? anios
+            : throw new ExcepcionDominio("Los años de servicio previos deben estar entre 0 y 60.");
     }
 
     private static string ValidarEmail(string? email)

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using RRHH.Application.Comun;
 using RRHH.Domain.Comun;
 
 namespace RRHH.Api.Infraestructura;
@@ -14,28 +15,21 @@ internal sealed class ManejadorExcepcionesGlobal(
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
-        ProblemDetails problema;
-
-        if (exception is ExcepcionDominio excepcionDominio)
+        var problema = exception switch
         {
-            // Regla de negocio violada: el mensaje está pensado para el usuario.
-            problema = new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Regla de negocio no cumplida",
-                Detail = excepcionDominio.Message,
-            };
-        }
-        else
+            ExcepcionDominio e => Crear(StatusCodes.Status400BadRequest, "Regla de negocio no cumplida", e.Message),
+            RecursoNoEncontradoException e => Crear(StatusCodes.Status404NotFound, "Recurso no encontrado", e.Message),
+            ConflictoException e => Crear(StatusCodes.Status409Conflict, "Conflicto con el estado actual", e.Message),
+            AccesoDenegadoException e => Crear(StatusCodes.Status403Forbidden, "Acceso denegado", e.Message),
+            _ => null,
+        };
+
+        if (problema is null)
         {
             logger.LogError(exception, "Error no controlado en {Metodo} {Ruta}",
                 httpContext.Request.Method, httpContext.Request.Path);
 
-            problema = new ProblemDetails
-            {
-                Status = StatusCodes.Status500InternalServerError,
-                Title = "Ha ocurrido un error inesperado",
-            };
+            problema = Crear(StatusCodes.Status500InternalServerError, "Ha ocurrido un error inesperado", null);
         }
 
         httpContext.Response.StatusCode = problema.Status!.Value;
@@ -47,4 +41,7 @@ internal sealed class ManejadorExcepcionesGlobal(
             Exception = exception,
         });
     }
+
+    private static ProblemDetails Crear(int estado, string titulo, string? detalle) =>
+        new() { Status = estado, Title = titulo, Detail = detalle };
 }

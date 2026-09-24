@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using RRHH.Domain.Calendario;
 using RRHH.Domain.Empleados;
 using RRHH.Domain.Organizacion;
+using RRHH.Domain.Seguros;
 using RRHH.Domain.Ubicacion;
+using RRHH.Domain.Vacaciones;
 
 namespace RRHH.Infrastructure.Persistencia;
 
@@ -14,11 +17,21 @@ public sealed class RrhhDbContext(DbContextOptions<RrhhDbContext> options) : DbC
     public DbSet<Departamento> Departamentos => Set<Departamento>();
     public DbSet<Cargo> Cargos => Set<Cargo>();
     public DbSet<Empleado> Empleados => Set<Empleado>();
+    public DbSet<Feriado> Feriados => Set<Feriado>();
+    public DbSet<SolicitudVacaciones> SolicitudesVacaciones => Set<SolicitudVacaciones>();
+    public DbSet<PlanSeguro> PlanesSeguro => Set<PlanSeguro>();
+    public DbSet<AfiliacionSeguro> AfiliacionesSeguro => Set<AfiliacionSeguro>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Esquema);
         // Aplica todas las clases IEntityTypeConfiguration<T> de este ensamblado.
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(RrhhDbContext).Assembly);
+    }
+
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        // Los enums se guardan como texto legible ("Aprobada", "Fonasa") en vez de números.
+        configurationBuilder.Properties<Enum>().HaveConversion<string>().HaveMaxLength(30);
     }
 }

@@ -23,6 +23,128 @@ namespace RRHH.Infrastructure.Persistencia.Migraciones
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("RRHH.Domain.Calendario.Feriado", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("Fecha")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Fecha")
+                        .IsUnique();
+
+                    b.ToTable("Feriados", "rrhh");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Fecha = new DateOnly(2026, 1, 1),
+                            Nombre = "Año Nuevo"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Fecha = new DateOnly(2026, 4, 3),
+                            Nombre = "Viernes Santo"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Fecha = new DateOnly(2026, 4, 4),
+                            Nombre = "Sábado Santo"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Fecha = new DateOnly(2026, 5, 1),
+                            Nombre = "Día Nacional del Trabajo"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Fecha = new DateOnly(2026, 5, 21),
+                            Nombre = "Día de las Glorias Navales"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Fecha = new DateOnly(2026, 6, 21),
+                            Nombre = "Día Nacional de los Pueblos Indígenas"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Fecha = new DateOnly(2026, 6, 29),
+                            Nombre = "San Pedro y San Pablo"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Fecha = new DateOnly(2026, 7, 16),
+                            Nombre = "Día de la Virgen del Carmen"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Fecha = new DateOnly(2026, 8, 15),
+                            Nombre = "Asunción de la Virgen"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            Fecha = new DateOnly(2026, 9, 18),
+                            Nombre = "Independencia Nacional"
+                        },
+                        new
+                        {
+                            Id = 11,
+                            Fecha = new DateOnly(2026, 9, 19),
+                            Nombre = "Día de las Glorias del Ejército"
+                        },
+                        new
+                        {
+                            Id = 12,
+                            Fecha = new DateOnly(2026, 10, 12),
+                            Nombre = "Encuentro de Dos Mundos"
+                        },
+                        new
+                        {
+                            Id = 13,
+                            Fecha = new DateOnly(2026, 10, 31),
+                            Nombre = "Día de las Iglesias Evangélicas y Protestantes"
+                        },
+                        new
+                        {
+                            Id = 14,
+                            Fecha = new DateOnly(2026, 11, 1),
+                            Nombre = "Día de Todos los Santos"
+                        },
+                        new
+                        {
+                            Id = 15,
+                            Fecha = new DateOnly(2026, 12, 8),
+                            Nombre = "Inmaculada Concepción"
+                        },
+                        new
+                        {
+                            Id = 16,
+                            Fecha = new DateOnly(2026, 12, 25),
+                            Nombre = "Navidad"
+                        });
+                });
+
             modelBuilder.Entity("RRHH.Domain.Empleados.Empleado", b =>
                 {
                     b.Property<int>("Id")
@@ -30,6 +152,15 @@ namespace RRHH.Infrastructure.Persistencia.Migraciones
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Afp")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<int>("AniosServicioPrevios")
+                        .HasColumnType("int");
 
                     b.Property<string>("ApellidoMaterno")
                         .HasMaxLength(100)
@@ -77,6 +208,12 @@ namespace RRHH.Infrastructure.Persistencia.Migraciones
                         .IsUnicode(false)
                         .HasColumnType("varchar(10)");
 
+                    b.Property<string>("SistemaSalud")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
                     b.Property<byte[]>("Version")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -88,8 +225,6 @@ namespace RRHH.Infrastructure.Persistencia.Migraciones
 
                     b.HasIndex("ComunaId");
 
-                    b.HasIndex("DepartamentoId");
-
                     b.HasIndex("Email")
                         .IsUnique();
 
@@ -97,6 +232,8 @@ namespace RRHH.Infrastructure.Persistencia.Migraciones
 
                     b.HasIndex("Rut")
                         .IsUnique();
+
+                    b.HasIndex("DepartamentoId", "FechaTermino");
 
                     b.ToTable("Empleados", "rrhh");
                 });
@@ -154,6 +291,77 @@ namespace RRHH.Infrastructure.Persistencia.Migraciones
                         .IsUnique();
 
                     b.ToTable("Departamentos", "rrhh");
+                });
+
+            modelBuilder.Entity("RRHH.Domain.Seguros.AfiliacionSeguro", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("EmpleadoId")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("FechaInicio")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("FechaTermino")
+                        .HasColumnType("date");
+
+                    b.Property<int>("NumeroCargas")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlanSeguroId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlanSeguroId");
+
+                    b.HasIndex("EmpleadoId", "PlanSeguroId");
+
+                    b.ToTable("AfiliacionesSeguro", "rrhh");
+                });
+
+            modelBuilder.Entity("RRHH.Domain.Seguros.PlanSeguro", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Aseguradora")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("PrimaMensualUf")
+                        .HasPrecision(10, 4)
+                        .HasColumnType("decimal(10,4)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Aseguradora", "Nombre")
+                        .IsUnique();
+
+                    b.ToTable("PlanesSeguro", "rrhh");
                 });
 
             modelBuilder.Entity("RRHH.Domain.Ubicacion.Comuna", b =>
@@ -2396,6 +2604,63 @@ namespace RRHH.Infrastructure.Persistencia.Migraciones
                         });
                 });
 
+            modelBuilder.Entity("RRHH.Domain.Vacaciones.SolicitudVacaciones", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Comentario")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("DiasHabiles")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpleadoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<DateOnly>("FechaFin")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("FechaInicio")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("FechaResolucion")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("FechaSolicitud")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("MotivoRechazo")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("ResueltaPorId")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResueltaPorId");
+
+                    b.HasIndex("EmpleadoId", "Estado");
+
+                    b.ToTable("SolicitudesVacaciones", "rrhh");
+                });
+
             modelBuilder.Entity("RRHH.Domain.Empleados.Empleado", b =>
                 {
                     b.HasOne("RRHH.Domain.Organizacion.Cargo", "Cargo")
@@ -2441,6 +2706,25 @@ namespace RRHH.Infrastructure.Persistencia.Migraciones
                     b.Navigation("Departamento");
                 });
 
+            modelBuilder.Entity("RRHH.Domain.Seguros.AfiliacionSeguro", b =>
+                {
+                    b.HasOne("RRHH.Domain.Empleados.Empleado", "Empleado")
+                        .WithMany()
+                        .HasForeignKey("EmpleadoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RRHH.Domain.Seguros.PlanSeguro", "PlanSeguro")
+                        .WithMany()
+                        .HasForeignKey("PlanSeguroId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empleado");
+
+                    b.Navigation("PlanSeguro");
+                });
+
             modelBuilder.Entity("RRHH.Domain.Ubicacion.Comuna", b =>
                 {
                     b.HasOne("RRHH.Domain.Ubicacion.Region", "Region")
@@ -2450,6 +2734,22 @@ namespace RRHH.Infrastructure.Persistencia.Migraciones
                         .IsRequired();
 
                     b.Navigation("Region");
+                });
+
+            modelBuilder.Entity("RRHH.Domain.Vacaciones.SolicitudVacaciones", b =>
+                {
+                    b.HasOne("RRHH.Domain.Empleados.Empleado", "Empleado")
+                        .WithMany()
+                        .HasForeignKey("EmpleadoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RRHH.Domain.Empleados.Empleado", null)
+                        .WithMany()
+                        .HasForeignKey("ResueltaPorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Empleado");
                 });
 
             modelBuilder.Entity("RRHH.Domain.Ubicacion.Region", b =>

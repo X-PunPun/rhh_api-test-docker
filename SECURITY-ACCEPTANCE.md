@@ -57,6 +57,20 @@ Hallazgos **Críticos o Altos bloquean el merge**.
 - [ ] HTTPS + HSTS fuera de desarrollo.
 - [ ] Dependencias sin vulnerabilidades conocidas: `dotnet list package --vulnerable`.
 
+## Estado actual (fin de la fase backend)
+
+| Punto | Estado |
+|---|---|
+| Errores sin stack trace (ProblemDetails) | ✅ |
+| OpenAPI / Swagger / Scalar solo en Development | ✅ |
+| Secretos fuera del repo (user-secrets, `.env`) | ✅ |
+| Reglas de negocio en el dominio + concurrencia optimista | ✅ |
+| Exportación Excel: tope de filas + neutralización de fórmulas | ✅ |
+| Autorización por recurso en vacaciones (jefatura directa, no auto-aprobación) | ✅ (con identidad temporal) |
+| **Identidad por cabecera `X-Empleado-Id`** | ⚠️ **Temporal, NO seguro**: se reemplaza por JWT en la fase de seguridad |
+| Autenticación, roles, alcance por región en listados/exportaciones | ⏳ Fase de seguridad |
+| Rate limiting, CORS, auditoría de accesos | ⏳ Fase de seguridad |
+
 ## Auditoría final
 
 Al cerrar el backend se ejecuta la skill `security-audit` en modo *full audit*, perfil `quick`,

@@ -26,6 +26,9 @@ internal sealed class EmpleadoConfiguracion : IEntityTypeConfiguration<Empleado>
         builder.Property(e => e.Email).HasMaxLength(Empleado.LargoMaximoEmail).IsRequired();
         builder.HasIndex(e => e.Email).IsUnique();
 
+        builder.Property(e => e.Afp).IsUnicode(false);
+        builder.Property(e => e.SistemaSalud).IsUnicode(false);
+
         builder.Ignore(e => e.Activo);
         builder.Ignore(e => e.NombreCompleto);
 
@@ -45,5 +48,6 @@ internal sealed class EmpleadoConfiguracion : IEntityTypeConfiguration<Empleado>
         builder.HasOne(e => e.Jefe).WithMany()
                .HasForeignKey(e => e.JefeId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(e => e.JefeId);
+        builder.HasIndex(e => new { e.DepartamentoId, e.FechaTermino });
     }
 }

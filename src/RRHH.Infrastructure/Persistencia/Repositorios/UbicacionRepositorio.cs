@@ -13,6 +13,9 @@ internal sealed class UbicacionRepositorio(RrhhDbContext db) : IUbicacionReposit
     public Task<bool> ExisteRegionAsync(int regionId, CancellationToken ct) =>
         db.Regiones.AnyAsync(r => r.Id == regionId, ct);
 
+    public Task<bool> ExisteComunaAsync(int comunaId, CancellationToken ct) =>
+        db.Comunas.AnyAsync(c => c.Id == comunaId, ct);
+
     public async Task<IReadOnlyList<Comuna>> ListarComunasPorRegionAsync(int regionId, CancellationToken ct) =>
         await db.Comunas.AsNoTracking()
                         .Where(c => c.RegionId == regionId)

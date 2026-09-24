@@ -2,10 +2,14 @@
 
   <PropertyGroup>
     <UserSecretsId>rrhh-api-9c1f4e2a-5b7d-4c3e-8a61-2f0d9e7b4c10</UserSecretsId>
+    <!-- Los comentarios XML (///) de los controladores aparecen en OpenAPI/Swagger -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
     <PackageReference Include="Scalar.AspNetCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <PrivateAssets>all</PrivateAssets>

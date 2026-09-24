@@ -27,6 +27,9 @@ public class UbicacionServicioTests
         public Task<bool> ExisteRegionAsync(int regionId, CancellationToken ct) =>
             Task.FromResult(_regiones.Any(r => r.Id == regionId));
 
+        public Task<bool> ExisteComunaAsync(int comunaId, CancellationToken ct) =>
+            Task.FromResult(_comunas.Any(c => c.Id == comunaId));
+
         public Task<IReadOnlyList<Comuna>> ListarComunasPorRegionAsync(int regionId, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<Comuna>>(_comunas.Where(c => c.RegionId == regionId).ToList());
     }

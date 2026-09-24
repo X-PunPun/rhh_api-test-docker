@@ -1,16 +1,89 @@
-@RRHH.Api_HostAddress = https://localhost:7052
+# Archivo de pruebas manuales (Visual Studio: clic en "Send request").
+# Los Id de ejemplo corresponden a los datos demo que se cargan en Development:
+#   1 = Gerente General · 5 = Jefe de Tecnología · 6, 7, 8 = su equipo
+@api = https://localhost:7052
+@jefeTi = 5
+@dev = 7
 
 ### Estado de la API y la base de datos
-GET {{RRHH.Api_HostAddress}}/health
+GET {{api}}/health
 
-### Listar regiones (norte a sur)
-GET {{RRHH.Api_HostAddress}}/api/v1/regiones
-Accept: application/json
+### ---------- Catálogos ----------
+GET {{api}}/api/v1/regiones
 
-### Comunas de la Región Metropolitana (CUT 13)
-GET {{RRHH.Api_HostAddress}}/api/v1/regiones/13/comunas
-Accept: application/json
+###
+GET {{api}}/api/v1/regiones/13/comunas
 
-### Región inexistente -> 404
-GET {{RRHH.Api_HostAddress}}/api/v1/regiones/99/comunas
-Accept: application/json
+###
+GET {{api}}/api/v1/feriados?anio=2026
+
+### ---------- Organización ----------
+GET {{api}}/api/v1/departamentos
+
+###
+GET {{api}}/api/v1/cargos?activo=true
+
+### ---------- Empleados ----------
+# Búsqueda con filtros y paginación
+GET {{api}}/api/v1/empleados?regionId=13&activo=true&pagina=1&tamanoPagina=10
+
+###
+GET {{api}}/api/v1/empleados?busqueda=camila
+
+###
+GET {{api}}/api/v1/empleados/{{jefeTi}}/subordinados
+
+### Crear empleado (RUT válido: 16.617.013-3)
+POST {{api}}/api/v1/empleados
+Content-Type: application/json
+
+{
+  "rut": "16.617.013-3",
+  "nombres": "Tomás",
+  "apellidoPaterno": "Navarro",
+  "apellidoMaterno": "Pinto",
+  "email": "tomas.navarro@empresa-demo.cl",
+  "fechaNacimiento": "1992-04-15",
+  "fechaIngreso": "2024-03-01",
+  "departamentoId": 3,
+  "cargoId": 6,
+  "comunaId": 13101,
+  "jefeId": {{jefeTi}},
+  "afp": "Modelo",
+  "sistemaSalud": "Fonasa",
+  "aniosServicioPrevios": 4
+}
+
+### ---------- Vacaciones ----------
+GET {{api}}/api/v1/empleados/{{dev}}/vacaciones/saldo
+
+### El empleado solicita vacaciones (cabecera = quién hace la petición)
+POST {{api}}/api/v1/empleados/{{dev}}/vacaciones
+Content-Type: application/json
+X-Empleado-Id: {{dev}}
+
+{
+  "fechaInicio": "2026-12-14",
+  "fechaFin": "2026-12-18",
+  "comentario": "Vacaciones de fin de año"
+}
+
+### Bandeja del jefe
+GET {{api}}/api/v1/vacaciones/pendientes-equipo
+X-Empleado-Id: {{jefeTi}}
+
+### Aprobar (reemplaza 2 por el id de la solicitud)
+POST {{api}}/api/v1/vacaciones/2/aprobar
+X-Empleado-Id: {{jefeTi}}
+
+### ---------- Seguros ----------
+GET {{api}}/api/v1/planes-seguro
+
+###
+GET {{api}}/api/v1/empleados/{{dev}}/seguros
+
+### ---------- Reportes ----------
+GET {{api}}/api/v1/reportes/resumen
+
+### Descarga Excel (en VS usa "Save response" o ábrelo desde Swagger)
+GET {{api}}/api/v1/reportes/empleados/excel?regionId=13
