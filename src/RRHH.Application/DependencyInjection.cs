@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using RRHH.Application.Comun;
 using RRHH.Application.Empleados;
 using RRHH.Application.Organizacion;
 using RRHH.Application.Reportes;
@@ -14,7 +15,7 @@ public static class DependencyInjection
     /// <summary>Registra los casos de uso (puertos de entrada) de la aplicación.</summary>
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<TimeProvider>(new RelojChile());
 
         services.AddScoped<IUbicacionServicio, UbicacionServicio>();
         services.AddScoped<IOrganizacionServicio, OrganizacionServicio>();

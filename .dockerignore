@@ -1,0 +1,12 @@
+# Contexto de la imagen de la API: solo el código necesario.
+**/bin
+**/obj
+**/node_modules
+**/TestResults
+.git
+.vs
+.vscode
+.env
+frontend
+tests
+*.md

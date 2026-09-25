@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.HttpOverrides;
 using RRHH.Api.Infraestructura;
 using RRHH.Api.OpenApi;
 using RRHH.Api.Seguridad;
@@ -49,6 +50,18 @@ builder.Services.AddOpenApi(opciones => opciones.AddDocumentTransformer<Informac
 var app = builder.Build();
 
 // ---------- Pipeline HTTP ----------
+// Detrás de un proxy (nginx en Docker): usar la IP real del cliente para el rate limiting y la auditoría.
+if (app.Configuration.GetValue<bool>("Proxy:UsarCabecerasReenviadas"))
+{
+    var opcionesProxy = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    };
+    opcionesProxy.KnownIPNetworks.Clear(); // la red interna de Docker no es fija
+    opcionesProxy.KnownProxies.Clear();
+    app.UseForwardedHeaders(opcionesProxy);
+}
+
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseCabecerasSeguridad();
