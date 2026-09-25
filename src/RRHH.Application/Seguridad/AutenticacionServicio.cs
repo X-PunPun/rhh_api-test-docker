@@ -79,7 +79,8 @@ internal sealed class AutenticacionServicio(
             // Un token ya usado vuelve a aparecer: alguien lo copió. Se cortan todas las sesiones del usuario.
             await tokens.RevocarTodosAsync(token.UsuarioId, ahora, "reutilización detectada", ct);
             await unidadDeTrabajo.GuardarCambiosAsync(ct);
-            await auditoria.RegistrarAsync("token.reutilizado", "se revocaron todas las sesiones", 401, token.UsuarioId, ct: ct);
+            var afectado = await usuarios.ObtenerAsync(token.UsuarioId, ct);
+            await auditoria.RegistrarAsync("token.reutilizado", "se revocaron todas las sesiones", 401, token.UsuarioId, afectado?.Email, ct);
             throw new NoAutenticadoException(MensajeSesionInvalida);
         }
 
@@ -111,7 +112,8 @@ internal sealed class AutenticacionServicio(
 
         token.Revocar(reloj.GetUtcNow(), "logout");
         await unidadDeTrabajo.GuardarCambiosAsync(ct);
-        await auditoria.RegistrarAsync("logout", null, 204, token.UsuarioId, ct: ct);
+        var usuario = await usuarios.ObtenerAsync(token.UsuarioId, ct);
+        await auditoria.RegistrarAsync("logout", null, 204, token.UsuarioId, usuario?.Email, ct);
     }
 
     public async Task<PerfilDto> ObtenerPerfilAsync(CancellationToken ct)

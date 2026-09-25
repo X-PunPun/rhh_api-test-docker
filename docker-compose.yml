@@ -1,6 +1,15 @@
-# Infraestructura local para desarrollo.
-# Uso:  1) copiar .env.example a .env y definir la contraseña
-#       2) docker compose up -d
+# Ambiente completo en Docker: base de datos + API + aplicación web.
+#
+#   1) Copiar .env.example a .env (y cambiar las claves si se desea)
+#   2) docker compose up -d --build        (o doble clic en levantar.cmd)
+#
+# Modo desarrollo (doble clic en levantar-dev.cmd, o `docker compose up --build --watch`):
+#   al guardar cambios en src/ o frontend/, Docker reconstruye y reinicia solo el servicio afectado.
+#
+#   Aplicación web : http://localhost:8080
+#   Swagger (API)  : http://localhost:5080/swagger
+#
+# Solo la base de datos (para depurar la API desde Visual Studio):  docker compose up -d sqlserver
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -21,6 +30,52 @@ services:
       retries: 10
       start_period: 20s
     restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: src/RRHH.Api/Dockerfile
+    container_name: rrhh-api
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      # Development: Swagger, migraciones automáticas y datos/usuarios demo (ambiente local de demostración).
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__RRHH: "Server=sqlserver,1433;Database=RRHH;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True"
+      Jwt__Llave: ${JWT_LLAVE:?Define JWT_LLAVE en el archivo .env}
+      Proxy__UsarCabecerasReenviadas: "true"
+    ports:
+      - "5080:8080"
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: ./src
+          ignore:
+            - "**/bin/"
+            - "**/obj/"
+        - action: rebuild
+          path: ./Directory.Packages.props
+        - action: rebuild
+          path: ./Directory.Build.props
+
+  web:
+    build:
+      context: ./frontend
+    container_name: rrhh-web
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: ./frontend
+          ignore:
+            - node_modules/
+            - dist/
 
 volumes:
   rrhh-sqldata:

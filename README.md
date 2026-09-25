@@ -7,6 +7,29 @@ reportes exportables a Excel.
 Proyecto de portafolio construido con **ASP.NET Core 10**, **EF Core 10** y **SQL Server**, siguiendo
 **arquitectura hexagonal** (puertos y adaptadores).
 
+## Levantar todo con Docker (recomendado para probar)
+
+Con Docker Desktop abierto, **doble clic en `levantar.cmd`** (o `docker compose up -d --build`).
+Levanta SQL Server, la API y la aplicación web ya conectadas entre sí:
+
+| Servicio | URL |
+|---|---|
+| Aplicación web | http://localhost:8080 |
+| Swagger (API) | http://localhost:5080/swagger |
+
+La web (nginx) reenvía `/api` a la API, así el navegador habla con un solo origen. Para detener: `docker compose stop`.
+Para depurar la API desde Visual Studio, levanta solo la base: `docker compose up -d sqlserver`.
+
+## Aplicación web
+
+El frontend está en [`frontend/`](frontend/README.md). Con la API corriendo:
+
+```powershell
+cd frontend
+npm install
+npm run dev     # http://localhost:5173
+```
+
 ## Arquitectura
 
 ```
@@ -145,7 +168,8 @@ dotnet test tests/RRHH.Domain.Tests           # solo dominio
 
 1. ✅ Backend: dominio, casos de uso, persistencia, reportes, pruebas.
 2. ✅ Seguridad: JWT + token de renovación rotativo, roles, alcance por región/jefatura, bloqueo, rate limiting, CORS, auditoría.
-3. ⏳ Frontend.
+3. ✅ Frontend: React + TypeScript + Vite en [`frontend/`](frontend/README.md).
+4. ⏳ Calidad y despliegue: CI en GitHub Actions, auditoría final, Docker de la API y del front.
 
 ## Seguridad
 
